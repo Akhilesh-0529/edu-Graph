@@ -138,7 +138,7 @@ Answer concisely:`;
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "gemma:2b",
+      model: "gemma:4b",
       prompt: prompt,
       stream: true
     })
@@ -358,7 +358,7 @@ async function processQuestion(question) {
       if (isOllamaOnline) {
         assistantMsgEl.innerHTML = `<span class='chat-pulse'>Connecting to local Ollama server...</span>`;
         const generatedText = await streamOllamaResponse(question, doc.content, assistantMsgEl);
-        finalText = `[Offline Ollama (gemma:2b) RAG Response] ${confidenceBadge}<br><br>${generatedText}<br><br><em>Source Context: "${doc.title}"</em>`;
+        finalText = `[Offline Ollama (gemma:4b) RAG Response] ${confidenceBadge}<br><br>${generatedText}<br><br><em>Source Context: "${doc.title}"</em>`;
         assistantMsgEl.innerHTML = finalText;
       } else {
         // Run local simulated NLP RAG fallback with confidence score
