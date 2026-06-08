@@ -49,8 +49,8 @@
     // Enforce clear session upon load
     localStorage.removeItem("active_user_role");
 
-    // Static Credentials Registry for role verification
-    const USER_DATABASE = {
+    // Local credentials database helper
+    const DEFAULT_DB = {
       "student@edu.org": { password: "student123", role: "student" },
       "teacher@edu.org": { password: "teacher123", role: "teacher" },
       "admin@edu.org": { password: "admin123", role: "admin" }
@@ -62,11 +62,13 @@
       const password = document.getElementById("auth-password").value;
       const selectedRole = document.getElementById("auth-role").value;
 
-      // Verify email exists in local database
-      const user = USER_DATABASE[email];
+      // Sync with admin dashboard's credentials database
+      const savedDb = localStorage.getItem("edusphere_users_database");
+      const db = savedDb ? JSON.parse(savedDb) : DEFAULT_DB;
+      
+      const user = db[email];
       
       if (!user || user.password !== password || user.role !== selectedRole) {
-        // Display validation alert
         alert("Invalid credentials! Please verify email, password, and role match.\n\nDemostration Accounts:\n- Student: student@edu.org / student123\n- Teacher: teacher@edu.org / teacher123\n- Admin: admin@edu.org / admin123");
         return;
       }

@@ -37,31 +37,112 @@
         
         <div class="glass" style="padding: 1.5rem; margin-bottom: 2rem;">
           <h3 style="margin-bottom: 1rem; font-weight: 600;">User & Role Controls</h3>
+          <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+            <input type="email" id="new-user-email" class="auth-input" style="max-width: 200px; padding: 0.5rem;" placeholder="Email">
+            <input type="password" id="new-user-pass" class="auth-input" style="max-width: 150px; padding: 0.5rem;" placeholder="New Password">
+            <select id="new-user-role" class="auth-select" style="max-width: 150px; padding: 0.5rem;">
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button class="btn-primary" style="padding: 0.5rem 1rem;" onclick="addOrUpdateUser()">Save / Modify User</button>
+          </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left;">
             <thead>
               <tr style="border-bottom: 1px solid var(--border-card); color: var(--text-secondary);">
-                <th style="padding: 0.75rem;">User Name</th>
                 <th style="padding: 0.75rem;">Email</th>
-                <th style="padding: 0.75rem;">Assigned Role</th>
+                <th style="padding: 0.75rem;">Role</th>
                 <th style="padding: 0.75rem;">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              <tr style="border-bottom: 1px solid var(--border-card);">
-                <td style="padding: 0.75rem;">Akhilesh Yerram</td>
-                <td style="padding: 0.75rem;">akhilesh@edu.org</td>
-                <td style="padding: 0.75rem;"><span class="role-badge" style="font-size: 0.7rem;">Student</span></td>
-                <td style="padding: 0.75rem;"><button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--warning); box-shadow: none;" onclick="alert('Access revoked for user.')">Revoke Access</button></td>
-              </tr>
-              <tr style="border-bottom: 1px solid var(--border-card);">
-                <td style="padding: 0.75rem;">Sarah Connor</td>
-                <td style="padding: 0.75rem;">sarah@edu.org</td>
-                <td style="padding: 0.75rem;"><span class="role-badge" style="font-size: 0.7rem; color: var(--accent); border-color: var(--accent); background: var(--accent-glow);">Teacher</span></td>
-                <td style="padding: 0.75rem;"><button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--warning); box-shadow: none;" onclick="alert('Access revoked for user.')">Revoke Access</button></td>
-              </tr>
+            <tbody id="admin-users-table-body">
+              <!-- Rendered via LocalStorage script -->
             </tbody>
           </table>
         </div>
+
+        <script>
+          // Local credentials database helper
+          const DEFAULT_DB = {
+            "student@edu.org": { password: "student123", role: "student" },
+            "teacher@edu.org": { password: "teacher123", role: "teacher" },
+            "admin@edu.org": { password: "admin123", role: "admin" }
+          };
+
+          function getDatabase() {
+            const saved = localStorage.getItem("edusphere_users_database");
+            if (!saved) {
+              localStorage.setItem("edusphere_users_database", JSON.stringify(DEFAULT_DB));
+              return DEFAULT_DB;
+            }
+            return JSON.parse(saved);
+          }
+
+          function renderUsers() {
+            const db = getDatabase();
+            const tbody = document.getElementById("admin-users-table-body");
+            if (!tbody) return;
+            tbody.innerHTML = "";
+            
+            Object.keys(db).forEach(email => {
+              const user = db[email];
+              const tr = document.createElement("tr");
+              tr.style.borderBottom = "1px solid var(--border-card)";
+              tr.innerHTML = `
+                <td style="padding: 0.75rem;">${email}</td>
+                <td style="padding: 0.75rem;"><span class="role-badge" style="font-size: 0.7rem;">${user.role}</span></td>
+                <td style="padding: 0.75rem; display: flex; gap: 0.5rem;">
+                  <button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--warning); box-shadow: none;" onclick="editUser('${email}')">Edit</button>
+                  <button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--error); box-shadow: none;" onclick="deleteUser('${email}')">Delete</button>
+                </td>
+              `;
+              tbody.appendChild(tr);
+            });
+          }
+
+          window.addOrUpdateUser = function() {
+            const email = document.getElementById("new-user-email").value.trim().toLowerCase();
+            const pass = document.getElementById("new-user-pass").value;
+            const role = document.getElementById("new-user-role").value;
+            
+            if (!email || !pass) {
+              alert("Please input both email and password.");
+              return;
+            }
+
+            const db = getDatabase();
+            db[email] = { password: pass, role: role };
+            localStorage.setItem("edusphere_users_database", JSON.stringify(db));
+            
+            // Sync credentials source of login.html if applicable
+            alert("User credentials saved successfully.");
+            document.getElementById("new-user-email").value = "";
+            document.getElementById("new-user-pass").value = "";
+            renderUsers();
+          };
+
+          window.editUser = function(email) {
+            const db = getDatabase();
+            const user = db[email];
+            if (user) {
+              document.getElementById("new-user-email").value = email;
+              document.getElementById("new-user-pass").value = user.password;
+              document.getElementById("new-user-role").value = user.role;
+            }
+          };
+
+          window.deleteUser = function(email) {
+            if (confirm(`Are you sure you want to completely delete ${email}?`)) {
+              const db = getDatabase();
+              delete db[email];
+              localStorage.setItem("edusphere_users_database", JSON.stringify(db));
+              renderUsers();
+            }
+          };
+
+          // Init
+          renderUsers();
+        </script>
       </section>
     </main>
   </div>

@@ -57,17 +57,7 @@
           <div class="glass" style="padding: 1.5rem;">
             <h3 style="margin-bottom: 1rem; font-weight: 600;">Escalated Student Queries</h3>
             <div id="escalated-questions-list" style="display: flex; flex-direction: column; gap: 1rem;">
-              <div style="padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid rgba(245, 158, 11, 0.2);" id="escalated-item-demo">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                  <span class="role-badge" style="font-size: 0.65rem; color: var(--warning); border-color: var(--warning);">Pending Review</span>
-                  <span style="font-size: 0.75rem; color: var(--text-secondary);">Asked by: Akhilesh</span>
-                </div>
-                <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">"Explain integration by parts in simple terms."</p>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--accent); box-shadow: none;" onclick="resolveEscalated()">Approve AI Response</button>
-                  <button class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--border-card); color: var(--text-primary); box-shadow: none;" onclick="resolveEscalated(true)">Respond Manually</button>
-                </div>
-              </div>
+              <!-- Dynamic escalations load here -->
             </div>
           </div>
         </div>
@@ -77,10 +67,64 @@
 
   <script src="app.js"></script>
   <script>
-    function resolveEscalated(manual = false) {
-      document.getElementById("escalated-item-demo").remove();
-      alert(manual ? "Manual response published to Student workspace." : "AI response draft approved and posted.");
+    // Load dynamic escalated questions from shared database storage
+    function loadEscalations() {
+      const container = document.getElementById("escalated-questions-list");
+      if (!container) return;
+      container.innerHTML = "";
+      
+      const saved = localStorage.getItem("edusphere_escalated_questions");
+      const escalations = saved ? JSON.parse(saved) : [];
+      
+      if (escalations.length === 0) {
+        container.innerHTML = `<div style="font-size: 0.9rem; color: var(--text-secondary); font-style: italic;">No pending student escalations currently in queue.</div>`;
+        return;
+      }
+      
+      escalations.forEach((item, index) => {
+        const itemEl = document.createElement("div");
+        itemEl.className = "glass";
+        itemEl.style.padding = "1rem";
+        itemEl.style.background = "rgba(255,255,255,0.02)";
+        itemEl.style.border = "1px solid rgba(245, 158, 11, 0.2)";
+        itemEl.innerHTML = `
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span class="role-badge" style="font-size: 0.65rem; color: var(--warning); border-color: var(--warning);">Pending Review</span>
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">Asked by: Student</span>
+          </div>
+          <p style="font-size: 0.9rem; margin-bottom: 0.75rem;">"${item.question}"</p>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--accent); box-shadow: none;" onclick="resolveSharedEscalation(${index})">Approve Response</button>
+            <button class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: transparent; border: 1px solid var(--border-card); color: var(--text-primary); box-shadow: none;" onclick="resolveSharedEscalation(${index}, true)">Manual Answer</button>
+          </div>
+        `;
+        container.appendChild(itemEl);
+      });
     }
+
+    window.resolveSharedEscalation = function(index, manual = false) {
+      const saved = localStorage.getItem("edusphere_escalated_questions");
+      const escalations = saved ? JSON.parse(saved) : [];
+      if (index > -1 && index < escalations.length) {
+        const resolvedItem = escalations.splice(index, 1)[0];
+        localStorage.setItem("edusphere_escalated_questions", JSON.stringify(escalations));
+        
+        // Add to historical answers
+        const chatSaved = localStorage.getItem("edusphere_chat_history");
+        const chatMessages = chatSaved ? JSON.parse(chatSaved) : [];
+        chatMessages.push({
+          sender: "assistant",
+          text: `[Teacher Resolved Answer] <br><br>Question: "${resolvedItem.question}"<br><br>${manual ? "A manual tutor response is being processed." : "The AI's generated response has been verified and approved by the course instructor."}`
+        });
+        localStorage.setItem("edusphere_chat_history", JSON.stringify(chatMessages));
+        
+        alert("Escalated question resolved successfully.");
+        loadEscalations();
+      }
+    };
+
+    // Initialize escalations list
+    loadEscalations();
   </script>
 </body>
 </html>

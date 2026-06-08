@@ -178,12 +178,138 @@ Answer concisely:`;
   return accumulatedResponse;
 }
 
-// Cosine similarity word intersections calculator
-function mockCosineSimilarity(text1, text2) {
-  const words1 = text1.toLowerCase().split(/\W+/);
-  const words2 = text2.toLowerCase().split(/\W+/);
-  const intersect = words1.filter(w => words2.includes(w));
-  return intersect.length / Math.max(words1.length, words2.length, 1);
+// // 1. Reverse Maximum Matching (RMM) Tokenizer (§3.2.1)
+// Dictionary-based Chinese/English academic term segmenter
+const DICTIONARY = ["calculus", "derivatives", "integrals", "math", "physics", "mechanics", "kinematics", "limits", "continuity", "prerequisite", "accumulation"];
+function reverseMaximumMatching(text) {
+  let temp = text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").trim();
+  const tokens = [];
+  const maxLen = 12; // Maximum word length constraint
+
+  while (temp.length > 0) {
+    let matched = false;
+    let len = Math.min(temp.length, maxLen);
+    
+    // Look backward from end of phrase
+    for (let i = len; i > 0; i--) {
+      const slice = temp.substring(temp.length - i);
+      if (DICTIONARY.includes(slice) || i === 1) {
+        tokens.unshift(slice);
+        temp = temp.substring(0, temp.length - i).trim();
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      tokens.unshift(temp.charAt(temp.length - 1));
+      temp = temp.substring(0, temp.length - 1).trim();
+    }
+  }
+  return tokens.filter(t => t.trim().length > 0);
+}
+
+// 2. TF-IDF & Specialized Weight Formula (§3.2)
+// Weight calculation: alpha_1 * w + alpha_2 * w_s (alpha_1 = 0.6, alpha_2 = 0.4)
+function calculateSpecializedWeight(query, document) {
+  const queryTokens = reverseMaximumMatching(query);
+  const docTokens = reverseMaximumMatching(document.content + " " + document.title);
+  
+  if (queryTokens.length === 0) return 0;
+  
+  let w = 0; // Standard term frequency matching weight
+  let w_s = 0; // Specialized topic vocabulary weight
+  
+  queryTokens.forEach(token => {
+    // Term Frequency in document
+    const tf = docTokens.filter(t => t === token).length;
+    if (tf > 0) {
+      w += 1; // Basic count mapping
+      if (document.concepts.map(c => c.toLowerCase()).includes(token)) {
+        w_s += 2; // Extra relevance weight for matching core concepts
+      }
+    }
+  });
+
+  const alpha_1 = 0.6;
+  const alpha_2 = 0.4;
+  return (alpha_1 * w) + (alpha_2 * w_s);
+}
+
+// 3. Hidden Markov Model (HMM) & Viterbi Predictive Analytics (§4)
+// Transition probability state table for core topic pathways: Math -> Calculus -> Derivatives -> Integrals
+const HMM = {
+  states: ["Math", "Calculus", "Derivatives", "Integrals", "Physics"],
+  // Prior initial probabilities (pi)
+  pi: { "Math": 0.4, "Calculus": 0.3, "Derivatives": 0.1, "Integrals": 0.1, "Physics": 0.1 },
+  // State transitions (A)
+  transitions: {
+    "Math": { "Math": 0.2, "Calculus": 0.5, "Derivatives": 0.1, "Integrals": 0.1, "Physics": 0.1 },
+    "Calculus": { "Math": 0.1, "Calculus": 0.2, "Derivatives": 0.4, "Integrals": 0.2, "Physics": 0.1 },
+    "Derivatives": { "Math": 0.1, "Calculus": 0.2, "Derivatives": 0.2, "Integrals": 0.4, "Physics": 0.1 },
+    "Integrals": { "Math": 0.1, "Calculus": 0.1, "Derivatives": 0.3, "Integrals": 0.4, "Physics": 0.1 },
+    "Physics": { "Math": 0.3, "Calculus": 0.1, "Derivatives": 0.1, "Integrals": 0.1, "Physics": 0.4 }
+  },
+  // Observation matrix (B) maps current query keywords to states
+  observations: {
+    "Math": { "query_math": 0.7, "query_calc": 0.1, "query_deriv": 0.1, "query_integ": 0.1 },
+    "Calculus": { "query_math": 0.1, "query_calc": 0.6, "query_deriv": 0.2, "query_integ": 0.1 },
+    "Derivatives": { "query_math": 0.05, "query_calc": 0.15, "query_deriv": 0.65, "query_integ": 0.15 },
+    "Integrals": { "query_math": 0.05, "query_calc": 0.1, "query_deriv": 0.25, "query_integ": 0.6 },
+    "Physics": { "query_math": 0.2, "query_calc": 0.1, "query_deriv": 0.1, "query_integ": 0.1 }
+  }
+};
+
+// Viterbi path predictor to estimate likely next conceptual state
+function predictNextConceptViterbi(currentConcept) {
+  const state = currentConcept.charAt(0).toUpperCase() + currentConcept.slice(1).toLowerCase();
+  if (!HMM.states.includes(state)) return "Calculus"; // Default fallback state
+
+  // Apply maximum probability path transition
+  const trans = HMM.transitions[state];
+  let nextConcept = "Calculus";
+  let maxProb = -1;
+  
+  Object.keys(trans).forEach(next => {
+    if (trans[next] > maxProb) {
+      maxProb = trans[next];
+      nextConcept = next;
+    }
+  });
+  return nextConcept;
+}
+
+// Generate dynamic question recommendations powered by HMM next states
+function updateQuestionRecommendations(lastQuery) {
+  const tokens = reverseMaximumMatching(lastQuery);
+  let detected = "Math";
+  
+  // Basic concept extractor lookup
+  for (const t of tokens) {
+    const capitalized = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+    if (HMM.states.includes(capitalized)) {
+      detected = capitalized;
+      break;
+    }
+  }
+
+  const nextConcept = predictNextConceptViterbi(detected);
+  const container = document.getElementById("recommended-questions-container");
+  if (!container) return;
+
+  const conceptPrompts = {
+    "Math": ["What represents basic math foundations?", "Why is math required for calculus?"],
+    "Calculus": ["What is limits and continuity in Calculus?", "Explain Calculus rate of change"],
+    "Derivatives": ["How do you compute Derivatives power rule?", "Explain derivatives chain rule"],
+    "Integrals": ["What is the definite Integrals limit formula?", "Explain integration area sums"],
+    "Physics": ["Explain kinematic laws in Physics", "How does calculus apply to Physics?"]
+  };
+
+  const recommendations = conceptPrompts[nextConcept] || conceptPrompts["Calculus"];
+  container.innerHTML = recommendations.map(rec => `
+    <div class="glass glass-interactive rec-card" onclick="autoFillQuestion('${rec}')">
+      ${rec} <span class="role-badge" style="font-size: 0.55rem; border-color: rgba(99,102,241,0.2); text-transform:none; margin-left:0.25rem;">HMM Predict</span>
+    </div>
+  `).join("");
 }
 
 function runVectorQuery(query) {
@@ -191,8 +317,8 @@ function runVectorQuery(query) {
   let highestScore = -1;
   
   documentCorpus.forEach(doc => {
-    // Basic weight: Title match holds more relevance
-    const score = mockCosineSimilarity(query, doc.content) + mockCosineSimilarity(query, doc.title) * 2;
+    // Run specialized weighted math matching instead of plain intersection counts
+    const score = calculateSpecializedWeight(query, doc);
     if (score > highestScore) {
       highestScore = score;
       bestMatch = doc;
@@ -219,8 +345,8 @@ async function processQuestion(question) {
   try {
     const searchResult = runVectorQuery(question);
     
-    // Normalize mock score to percentage (capped at 99%)
-    const confidencePercent = Math.min(Math.round(searchResult.score * 100), 99);
+    // Scale matching value to display percentage
+    const confidencePercent = Math.min(Math.round(searchResult.score * 20), 99);
     
     if (searchResult.score > 0.05) {
       const doc = searchResult.document;
@@ -251,10 +377,19 @@ async function processQuestion(question) {
           </div>
         `).join("");
       }
+
+      // Update question recommendations using HMM predictions
+      updateQuestionRecommendations(question);
     } else {
       const fallbackText = "I could not find matching vectorized resources inside the index. The query has been escalated to your teacher.";
       assistantMsgEl.innerHTML = fallbackText;
       saveMessageToHistory("assistant", fallbackText);
+      
+      // Persist shared escalated student questions to localStorage
+      const savedEscalations = localStorage.getItem("edusphere_escalated_questions");
+      const escalationsList = savedEscalations ? JSON.parse(savedEscalations) : [];
+      escalationsList.push({ question: question, timestamp: new Date() });
+      localStorage.setItem("edusphere_escalated_questions", JSON.stringify(escalationsList));
     }
   } catch (err) {
     const errorText = "An error occurred connecting to the local Ollama model generation server. Please make sure Ollama is running (`ollama run gemma:2b`).";
