@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduSphære - Login & Registration</title>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="auth-wrapper">
+    <div class="glass auth-card">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div class="logo-icon" style="width: 50px; height: 50px; font-size: 1.75rem; border-radius: 12px; margin: 0 auto 1rem;">Ω</div>
+        <h2 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">Welcome to EduSphære</h2>
+        <p style="font-size: 0.9rem; color: var(--text-secondary);">Access your AI-Powered concept workspace</p>
+      </div>
+
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+        <div class="input-group">
+          <label class="input-label">Email Address</label>
+          <input type="email" id="auth-email" class="auth-input" placeholder="e.g. akhilesh@edu.org" required>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Password</label>
+          <input type="password" id="auth-password" class="auth-input" placeholder="••••••••" required>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Account Role</label>
+          <select id="auth-role" class="auth-select">
+            <option value="student">Student Account</option>
+            <option value="teacher">Teacher / Faculty</option>
+            <option value="admin">Platform Administrator</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">Sign In / Register</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Enforce clear session upon load
+    localStorage.removeItem("active_user_role");
+
+    // Static Credentials Registry for role verification
+    const USER_DATABASE = {
+      "student@edu.org": { password: "student123", role: "student" },
+      "teacher@edu.org": { password: "teacher123", role: "teacher" },
+      "admin@edu.org": { password: "admin123", role: "admin" }
+    };
+
+    function handleAuthSubmit(event) {
+      event.preventDefault();
+      const email = document.getElementById("auth-email").value.trim().toLowerCase();
+      const password = document.getElementById("auth-password").value;
+      const selectedRole = document.getElementById("auth-role").value;
+
+      // Verify email exists in local database
+      const user = USER_DATABASE[email];
+      
+      if (!user || user.password !== password || user.role !== selectedRole) {
+        // Display validation alert
+        alert("Invalid credentials! Please verify email, password, and role match.\n\nDemostration Accounts:\n- Student: student@edu.org / student123\n- Teacher: teacher@edu.org / teacher123\n- Admin: admin@edu.org / admin123");
+        return;
+      }
+
+      // Persist verified session
+      localStorage.setItem("active_user_role", user.role);
+      localStorage.setItem("active_user_email", email);
+
+      // Redirect to target workspace
+      if (user.role === "student") {
+        window.location.href = "student.html";
+      } else if (user.role === "teacher") {
+        window.location.href = "teacher.html";
+      } else if (user.role === "admin") {
+        window.location.href = "admin.html";
+      }
+    }
+  </script>
+</body>
+</html>

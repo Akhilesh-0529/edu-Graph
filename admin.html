@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduSphære - Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="glass">
+    <div class="logo-container">
+      <div class="logo-icon">Ω</div>
+      <h1 style="font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">EduSphære</h1>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <div id="role-display-badge" class="role-badge" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); color: #fbcfe8;">Admin Mode</div>
+      <button class="btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: none;" onclick="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="nav-item active" data-target="panel-admin-settings">
+        <span>⚙️</span> System Settings
+      </div>
+    </aside>
+
+    <main class="content-area">
+      <section id="panel-admin-settings" class="view-panel active">
+        <h2 style="margin-bottom: 1.5rem; font-weight: 700;">System Administration</h2>
+        
+        <div class="glass" style="padding: 1.5rem; margin-bottom: 2rem;">
+          <h3 style="margin-bottom: 1rem; font-weight: 600;">User & Role Controls</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-card); color: var(--text-secondary);">
+                <th style="padding: 0.75rem;">User Name</th>
+                <th style="padding: 0.75rem;">Email</th>
+                <th style="padding: 0.75rem;">Assigned Role</th>
+                <th style="padding: 0.75rem;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid var(--border-card);">
+                <td style="padding: 0.75rem;">Akhilesh Yerram</td>
+                <td style="padding: 0.75rem;">akhilesh@edu.org</td>
+                <td style="padding: 0.75rem;"><span class="role-badge" style="font-size: 0.7rem;">Student</span></td>
+                <td style="padding: 0.75rem;"><button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--warning); box-shadow: none;" onclick="alert('Access revoked for user.')">Revoke Access</button></td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border-card);">
+                <td style="padding: 0.75rem;">Sarah Connor</td>
+                <td style="padding: 0.75rem;">sarah@edu.org</td>
+                <td style="padding: 0.75rem;"><span class="role-badge" style="font-size: 0.7rem; color: var(--accent); border-color: var(--accent); background: var(--accent-glow);">Teacher</span></td>
+                <td style="padding: 0.75rem;"><button class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.7rem; background: var(--warning); box-shadow: none;" onclick="alert('Access revoked for user.')">Revoke Access</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
