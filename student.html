@@ -42,6 +42,10 @@
       <section id="panel-chat" class="view-panel active">
         <div class="chat-grid">
           <div class="chat-box glass" style="padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-card); padding-bottom: 0.5rem;">
+              <h3 style="font-size: 1rem; font-weight: 600;">Interactive Assistant</h3>
+              <button id="btn-clear-history" class="btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: none;">Clear History</button>
+            </div>
             <div class="chat-history" id="chat-messages-container">
               <div class="message assistant">
                 Hello! I am your AI Educational Assistant. Ask me academic questions about <strong>Calculus, Derivatives, Integrals, or Physics</strong>, and I will search our ingested textbooks and concept graph to formulate a response!

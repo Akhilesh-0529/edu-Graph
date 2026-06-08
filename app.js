@@ -13,6 +13,7 @@
 window.logout = function() {
   localStorage.removeItem("active_user_role");
   localStorage.removeItem("active_user_email");
+  localStorage.removeItem("edusphere_chat_history"); // Optional: clear session logs on hard logout
   window.location.href = "login.html";
 };
 
@@ -74,19 +75,60 @@ document.querySelectorAll(".nav-item").forEach(item => {
 const chatInput = document.getElementById("chat-input-field");
 const chatHistory = document.getElementById("chat-messages-container");
 const btnSend = document.getElementById("btn-send-message");
+const btnClear = document.getElementById("btn-clear-history");
 const conceptContainer = document.getElementById("kg-concept-relations");
 
-function appendMessage(sender, text) {
+// 1. Chat History: load from localStorage on init
+function loadChatHistory() {
   if (!chatHistory) return;
+  
+  // Clear the message container except the default welcome message
+  chatHistory.innerHTML = "";
+  
+  const saved = localStorage.getItem("edusphere_chat_history");
+  if (saved) {
+    const messages = JSON.parse(saved);
+    messages.forEach(msg => {
+      renderMessage(msg.sender, msg.text);
+    });
+  } else {
+    // Default initial message if no history exists
+    renderMessage("assistant", "Hello! I am your AI Educational Assistant. Ask me academic questions about <strong>Calculus, Derivatives, Integrals, or Physics</strong>, and I will search our ingested textbooks and concept graph to formulate a response!");
+  }
+}
+
+function saveMessageToHistory(sender, text) {
+  const saved = localStorage.getItem("edusphere_chat_history");
+  const messages = saved ? JSON.parse(saved) : [];
+  messages.push({ sender, text });
+  
+  // Keep last 30 messages
+  if (messages.length > 30) {
+    messages.shift();
+  }
+  localStorage.setItem("edusphere_chat_history", JSON.stringify(messages));
+}
+
+function renderMessage(sender, text) {
+  if (!chatHistory) return null;
   const msg = document.createElement("div");
   msg.className = `message ${sender}`;
   msg.innerHTML = text;
   chatHistory.appendChild(msg);
   chatHistory.scrollTop = chatHistory.scrollHeight;
+  return msg;
 }
 
-// Local Ollama generation API fetcher
-async function generateOllamaResponse(query, contextText) {
+// Clear History Handler
+if (btnClear) {
+  btnClear.addEventListener("click", () => {
+    localStorage.removeItem("edusphere_chat_history");
+    loadChatHistory();
+  });
+}
+
+// 2. Typing Indicator / Streaming Response from local Ollama
+async function streamOllamaResponse(query, contextText, messageElement) {
   const prompt = `You are an AI assistant. Answer the student's question based strictly on this context:
 Context: ${contextText}
 Question: ${query}
@@ -98,13 +140,42 @@ Answer concisely:`;
     body: JSON.stringify({
       model: "gemma:2b",
       prompt: prompt,
-      stream: false
+      stream: true
     })
   });
 
-  if (!response.ok) throw new Error("Ollama generation failed");
-  const data = await response.json();
-  return data.response;
+  if (!response.ok) throw new Error("Ollama connection failed");
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let accumulatedResponse = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    
+    const chunk = decoder.decode(value, { stream: true });
+    // Ollama streams JSON lines
+    const lines = chunk.split("\n");
+    for (const line of lines) {
+      if (line.trim() !== "") {
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.response) {
+            accumulatedResponse += parsed.response;
+            // Update UI dynamically with cursor
+            messageElement.innerHTML = `[Offline Ollama (gemma:2b) RAG Response]<br><br>${accumulatedResponse}<span class="chat-pulse">▍</span>`;
+          }
+        } catch (e) {
+          // Incomplete line chunk, ignore and continue
+        }
+      }
+    }
+  }
+  
+  // Strip cursor at the end
+  messageElement.innerHTML = `[Offline Ollama (gemma:2b) RAG Response]<br><br>${accumulatedResponse}`;
+  return accumulatedResponse;
 }
 
 // Cosine similarity word intersections calculator
@@ -120,6 +191,7 @@ function runVectorQuery(query) {
   let highestScore = -1;
   
   documentCorpus.forEach(doc => {
+    // Basic weight: Title match holds more relevance
     const score = mockCosineSimilarity(query, doc.content) + mockCosineSimilarity(query, doc.title) * 2;
     if (score > highestScore) {
       highestScore = score;
@@ -132,36 +204,44 @@ function runVectorQuery(query) {
 
 async function processQuestion(question) {
   if (!question.trim()) return;
-  appendMessage("user", question);
+  
+  renderMessage("user", question);
+  saveMessageToHistory("user", question);
   chatInput.value = "";
   
   queryCount++;
   const statCount = document.getElementById("stat-queries-count");
   if (statCount) statCount.textContent = queryCount;
   
-  // Show loading indicator
-  const loading = document.createElement("div");
-  loading.className = "message assistant";
-  loading.innerHTML = `<span class='chat-pulse'>Thinking... ${isOllamaOnline ? 'Generating response locally via Ollama (gemma)...' : 'Searching FAISS vector database...'}</span>`;
-  chatHistory.appendChild(loading);
-  chatHistory.scrollTop = chatHistory.scrollHeight;
+  // Create an assistant element to load tokens into
+  const assistantMsgEl = renderMessage("assistant", "<span class='chat-pulse'>Searching vector database...</span>");
   
   try {
     const searchResult = runVectorQuery(question);
     
+    // Normalize mock score to percentage (capped at 99%)
+    const confidencePercent = Math.min(Math.round(searchResult.score * 100), 99);
+    
     if (searchResult.score > 0.05) {
       const doc = searchResult.document;
-      let answer = "";
+      let finalText = "";
+      
+      // Update with confidence badge status
+      const confidenceBadge = `<span class="role-badge" style="font-size: 0.65rem; background: var(--accent-glow); color: var(--accent); border-color: var(--accent); margin-left: 0.5rem; text-transform: none;">${confidencePercent}% Match Confidence</span>`;
       
       if (isOllamaOnline) {
-        const generatedText = await generateOllamaResponse(question, doc.content);
-        answer = `[Offline Ollama (gemma:2b) RAG Response]<br><br>${generatedText}<br><br><em>Source Context: "${doc.title}"</em>`;
+        assistantMsgEl.innerHTML = `<span class='chat-pulse'>Connecting to local Ollama server...</span>`;
+        const generatedText = await streamOllamaResponse(question, doc.content, assistantMsgEl);
+        finalText = `[Offline Ollama (gemma:2b) RAG Response] ${confidenceBadge}<br><br>${generatedText}<br><br><em>Source Context: "${doc.title}"</em>`;
+        assistantMsgEl.innerHTML = finalText;
       } else {
-        answer = `[Local NLP Simulation RAG Response]<br><br>Based on context from *"${doc.title}"*:<br>${doc.content}<br><br><em>Extracted Concept Tags: ${doc.concepts.join(", ")}</em>`;
+        // Run local simulated NLP RAG fallback with confidence score
+        finalText = `[Local NLP Simulation RAG Response] ${confidenceBadge}<br><br>Based on context from *"${doc.title}"*:<br>${doc.content}<br><br><em>Extracted Concept Tags: ${doc.concepts.join(", ")}</em>`;
+        assistantMsgEl.innerHTML = finalText;
       }
       
-      chatHistory.removeChild(loading);
-      appendMessage("assistant", answer);
+      // Save assistant response to history
+      saveMessageToHistory("assistant", finalText);
       
       // Update sidebar concepts
       if (conceptContainer) {
@@ -172,12 +252,14 @@ async function processQuestion(question) {
         `).join("");
       }
     } else {
-      chatHistory.removeChild(loading);
-      appendMessage("assistant", "I could not find matching vectorized resources inside the index. The query has been escalated to your teacher.");
+      const fallbackText = "I could not find matching vectorized resources inside the index. The query has been escalated to your teacher.";
+      assistantMsgEl.innerHTML = fallbackText;
+      saveMessageToHistory("assistant", fallbackText);
     }
   } catch (err) {
-    if (chatHistory.contains(loading)) chatHistory.removeChild(loading);
-    appendMessage("assistant", "An error occurred connecting to the local Ollama model generation server. Please make sure Ollama is running (`ollama run gemma:2b`).");
+    const errorText = "An error occurred connecting to the local Ollama model generation server. Please make sure Ollama is running (`ollama run gemma:2b`).";
+    assistantMsgEl.innerHTML = errorText;
+    saveMessageToHistory("assistant", errorText);
   }
 }
 
@@ -209,3 +291,6 @@ window.nodeClick = function(conceptName) {
     });
   }
 };
+
+// Load chat history on script initialization
+loadChatHistory();
