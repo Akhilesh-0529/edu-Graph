@@ -309,3 +309,100 @@ Guidelines:
     provider: "Simulated Fallback (Offline)"
   };
 }
+
+export async function generateChatResponse(
+  messages: { role: "user" | "assistant"; content: string }[],
+  currentGraph?: GraphOutput
+): Promise<{ response: string; provider: string }> {
+  const systemPrompt = `You are an expert tutor answering the user's questions about the topics in their current knowledge graph.
+Use the knowledge graph nodes and relationships below as context for your explanations. Keep your answers clear, educational, and structured (using bold text and bullet points if appropriate).
+
+Current Knowledge Graph Context:
+${JSON.stringify(currentGraph || { nodes: [], edges: [] })}
+
+Answer the user's query directly and concisely based on this context.`;
+
+  const userPrompt = `Conversation History:\n${messages
+    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+    .join("\n")}\n\nGenerate your tutoring response based on the latest query.`;
+
+  const deepseekKey = process.env.DEEPSEEK_API_KEY || process.env.GROQ_API_KEY;
+
+  // 1. Try DeepSeek (Online) if key is present
+  if (deepseekKey) {
+    try {
+      console.log("[AI_SERVICE] Attempting DeepSeek (online) for chat Q&A");
+      const response = await fetch(DEEPSEEK_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${deepseekKey}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.3
+        })
+      });
+
+      if (response.ok) {
+        const rawData = await response.json();
+        const rawText = rawData.choices?.[0]?.message?.content || "";
+        if (rawText) {
+          return {
+            response: rawText,
+            provider: "DeepSeek (Online)"
+          };
+        }
+      } else {
+        console.warn(`[AI_SERVICE] DeepSeek online returned status ${response.status} for Q&A. Falling back to Ollama.`);
+      }
+    } catch (err) {
+      console.warn("[AI_SERVICE] DeepSeek online failed for Q&A. Falling back to Ollama:", err);
+    }
+  }
+
+  // 2. Fallback to Ollama (Local)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`[AI_SERVICE] Attempting Ollama (local chat Q&A) - Attempt ${attempt}`);
+      const response = await fetch(`${OLLAMA_HOST}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          system: systemPrompt,
+          prompt: userPrompt,
+          stream: false,
+          options: { temperature: 0.3 }
+        })
+      });
+
+      if (response.ok) {
+        const rawData = await response.json();
+        const rawText = rawData.response || "";
+        if (rawText) {
+          return {
+            response: rawText,
+            provider: "Ollama Local (gemma4:e4b)"
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`[AI_SERVICE] Ollama Q&A attempt ${attempt} failed:`, err);
+    }
+  }
+
+  // 3. Fallback to simulated response
+  console.warn("[AI_SERVICE] Both DeepSeek and Ollama failed for Q&A. Generating simulated tutoring reply.");
+  const lastMessage = messages[messages.length - 1]?.content || "study topic";
+  const responseText = `Here is a simulated tutor response to your question: "${lastMessage}". (AI connection is offline). If you want to expand your graph, try using the Chat to Build Graph option.`;
+  return {
+    response: responseText,
+    provider: "Simulated Fallback (Offline)"
+  };
+}
+

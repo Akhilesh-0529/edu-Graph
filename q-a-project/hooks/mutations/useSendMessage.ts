@@ -4,13 +4,15 @@ import { ChatMessage } from "../queries/useConversation";
 interface SendMessageParams {
   graphId: string;
   query: string;
+  messages?: { role: "user" | "assistant"; content: string }[];
   context?: string;
 }
 
 interface SendMessageResponse {
   success: boolean;
   response: string;
-  concept: string;
+  provider: string;
+  messages?: { role: "user" | "assistant"; content: string }[];
 }
 
 async function sendMessageRequest(params: SendMessageParams): Promise<SendMessageResponse> {
@@ -18,8 +20,9 @@ async function sendMessageRequest(params: SendMessageParams): Promise<SendMessag
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      graphId: params.graphId,
       query: params.query,
-      context: params.context,
+      messages: params.messages || [],
     }),
   });
 
@@ -83,3 +86,4 @@ export function useSendMessage() {
     error: mutation.error?.message || null,
   };
 }
+

@@ -80,3 +80,40 @@ export async function POST(req: NextRequest) {
     return handleError(error);
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const userId = await getAuthUserId();
+    const { searchParams } = new URL(req.url);
+    const graphId = searchParams.get("graphId");
+
+    if (!graphId) {
+      return NextResponse.json(
+        { success: false, error: "Missing graphId parameter." },
+        { status: 400 }
+      );
+    }
+
+    const { db } = await connectToDatabase();
+
+    const result = await db.collection("knowledgeGraphs").deleteOne({
+      userId,
+      graphId,
+    });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { success: false, error: "Knowledge graph not found or unauthorized." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Knowledge graph deleted successfully.",
+    });
+  } catch (error) {
+    return handleError(error);
+  }
+}
+

@@ -19,6 +19,7 @@ import {
 import { useGraphs, GraphSummary } from "@/hooks/queries/useGraphs";
 import { useGraph, GraphDetailResponse } from "@/hooks/queries/useGraph";
 import { useSendMessage } from "@/hooks/mutations/useSendMessage";
+import { useDeleteGraph } from "@/hooks/mutations/useDeleteGraph";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUploadContent } from "@/hooks/mutations/useUploadContent";
 import { useProcessContent } from "@/hooks/mutations/useProcessContent";
@@ -314,7 +315,14 @@ interface ChatMessage {
   text: string;
 }
 
-function ChatPanel({ graphId, initialMessages = [] }: { graphId: string; initialMessages?: ChatMessage[] }) {
+interface ChatPanelProps {
+  graphId: string;
+  initialMessages?: ChatMessage[];
+  onMessagesUpdated?: (nextMessages: ChatMessage[]) => void;
+  onProviderUpdated?: (provider: string) => void;
+}
+
+function ChatPanel({ graphId, initialMessages = [], onMessagesUpdated, onProviderUpdated }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -337,11 +345,17 @@ function ChatPanel({ graphId, initialMessages = [] }: { graphId: string; initial
       sender: "user",
       text: trimmed,
     };
-    setMessages((prev) => [...prev, userMsg]);
+    
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
 
     sendMessage(
-      { graphId, query: trimmed },
+      {
+        graphId,
+        query: trimmed,
+        messages: updatedMessages.map((m) => ({ role: m.sender, content: m.text })),
+      },
       {
         onSuccess: (data) => {
           const assistantMsg: ChatMessage = {
@@ -349,7 +363,14 @@ function ChatPanel({ graphId, initialMessages = [] }: { graphId: string; initial
             sender: "assistant",
             text: data.response,
           };
-          setMessages((prev) => [...prev, assistantMsg]);
+          const nextMessages = [...updatedMessages, assistantMsg];
+          setMessages(nextMessages);
+          if (onMessagesUpdated) {
+            onMessagesUpdated(nextMessages);
+          }
+          if (onProviderUpdated && data.provider) {
+            onProviderUpdated(data.provider);
+          }
         },
         onError: () => {
           const errorMsg: ChatMessage = {
@@ -361,7 +382,7 @@ function ChatPanel({ graphId, initialMessages = [] }: { graphId: string; initial
         },
       }
     );
-  }, [input, isLoading, graphId, sendMessage]);
+  }, [input, isLoading, graphId, sendMessage, messages, onMessagesUpdated, onProviderUpdated]);
 
   return (
     <div className="flex flex-col h-full">
@@ -837,16 +858,24 @@ export default function Home() {
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  const { deleteGraph } = useDeleteGraph();
+
   const [localGraphOverride, setLocalGraphOverride] = useState<Record<string, GraphDetailResponse>>({});
+
+  const isNewSession = selectedGraphId ? (selectedGraphId.startsWith("chat-") && !graphs?.some((g) => g.graphId === selectedGraphId)) : false;
+  const isChatBuiltGraph = selectedGraphId ? (selectedGraphId.startsWith("chat-") || !!graphs?.find((g) => g.graphId === selectedGraphId)?.isChatBuilt) : false;
 
   const {
     data: graphData,
     isLoading: graphLoading,
     error: graphError,
-  } = useGraph(selectedGraphId && !selectedGraphId.startsWith("chat-") ? selectedGraphId : "");
+  } = useGraph(selectedGraphId && !isNewSession ? selectedGraphId : "");
 
-  const isNewSession = selectedGraphId?.startsWith("chat-");
-  const isChatBuiltGraph = isNewSession || !!graphs?.find((g) => g.graphId === selectedGraphId)?.isChatBuilt;
+  const hasLocalData = selectedGraphId && !!localGraphOverride[selectedGraphId];
+  const activeGraphData = selectedGraphId ? (localGraphOverride[selectedGraphId] || graphData) : null;
+  
+  const activeLoading = graphLoading && !isNewSession;
+  const activeError = graphError && !isNewSession;
 
   // Sync activeProvider when a new graph is selected
   useEffect(() => {
@@ -875,7 +904,16 @@ export default function Home() {
         if (isChatBuiltGraph) {
           setLocalGraphOverride((prev) => ({
             ...prev,
-            [selectedGraphId]: { nodes: [], edges: [] },
+            [selectedGraphId]: { nodes: [], edges: [], messages: [] },
+          }));
+        } else {
+          setLocalGraphOverride((prev) => ({
+            ...prev,
+            [selectedGraphId]: {
+              nodes: activeGraphData?.nodes || [],
+              edges: activeGraphData?.edges || [],
+              messages: [],
+            },
           }));
         }
         queryClient.invalidateQueries({ queryKey: ["graph", selectedGraphId] });
@@ -884,7 +922,20 @@ export default function Home() {
     } catch (err) {
       console.error("Failed to clear chat history:", err);
     }
-  }, [selectedGraphId, isChatBuiltGraph, queryClient]);
+  }, [selectedGraphId, isChatBuiltGraph, activeGraphData, queryClient]);
+
+  const handleDeleteGraph = useCallback(async (graphId: string) => {
+    try {
+      await deleteGraph(graphId);
+      if (selectedGraphId === graphId) {
+        setSelectedGraphId(null);
+        setSelectedNode(null);
+        setShowChat(false);
+      }
+    } catch (err) {
+      console.error("Failed to delete graph:", err);
+    }
+  }, [deleteGraph, selectedGraphId]);
 
   // Keyboard shortcut: ⌘K for search, Escape to close
   useEffect(() => {
@@ -933,11 +984,7 @@ export default function Home() {
     [graphData]
   );
 
-  const hasLocalData = selectedGraphId && !!localGraphOverride[selectedGraphId];
-  const activeGraphData = selectedGraphId ? (localGraphOverride[selectedGraphId] || graphData) : null;
-  
-  const activeLoading = graphLoading && !isNewSession;
-  const activeError = graphError && !isNewSession;
+
 
   const currentGraphTitle = selectedGraphId
     ? graphs?.find((g) => g.graphId === selectedGraphId)?.title || (isNewSession ? "New Chat-Build Session" : "Knowledge Graph")
@@ -993,30 +1040,51 @@ export default function Home() {
               Failed to load graphs
             </p>
           )}
-          {graphs?.map((g) => (
-            <button
-              key={g.graphId}
-              onClick={() => handleGraphSelect(g)}
-              className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-xl transition duration-200 ${
-                selectedGraphId === g.graphId
-                  ? "bg-[rgba(99,102,241,0.08)] border border-[rgba(99,102,241,0.2)] text-[var(--primary)]"
-                  : "hover:bg-[rgba(255,255,255,0.03)] border border-transparent text-[var(--text-primary)]"
-              }`}
-            >
-              {g.isChatBuilt ? (
-                <MessageSquare className="w-4 h-4 flex-shrink-0 opacity-60 text-[var(--primary)] animate-pulse" />
-              ) : (
-                <BookOpen className="w-4 h-4 flex-shrink-0 opacity-60" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{g.title}</p>
-                <p className="text-[10px] text-[var(--text-muted)]">
-                  {g.nodesCount} concepts {g.isChatBuilt && "• Chat"}
-                </p>
+          {graphs?.map((g) => {
+            const isSelected = selectedGraphId === g.graphId;
+            return (
+              <div
+                key={g.graphId}
+                className={`group flex items-center justify-between w-full px-3 py-2.5 rounded-xl transition duration-200 border cursor-pointer ${
+                  isSelected
+                    ? "bg-[rgba(99,102,241,0.08)] border-[rgba(99,102,241,0.2)] text-[var(--primary)]"
+                    : "hover:bg-[rgba(255,255,255,0.03)] border-transparent text-[var(--text-primary)]"
+                }`}
+                onClick={() => handleGraphSelect(g)}
+              >
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  {g.isChatBuilt ? (
+                    <MessageSquare className="w-4 h-4 flex-shrink-0 opacity-60 text-[var(--primary)] animate-pulse" />
+                  ) : (
+                    <BookOpen className="w-4 h-4 flex-shrink-0 opacity-60" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{g.title}</p>
+                    <p className="text-[10px] text-[var(--text-muted)]">
+                      {g.nodesCount} concepts {g.isChatBuilt && "• Chat"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center flex-shrink-0 relative w-6 h-6">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Are you sure you want to delete this knowledge graph?")) {
+                        handleDeleteGraph(g.graphId);
+                      }
+                    }}
+                    className="absolute inset-0 flex items-center justify-center p-1 rounded hover:bg-[rgba(255,0,0,0.12)] text-[var(--text-muted)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    title="Delete Knowledge Graph"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-30 group-hover:opacity-0 transition-all duration-200 pointer-events-none">
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                </div>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 opacity-30 flex-shrink-0" />
-            </button>
-          ))}
+            );
+          })}
           {!graphsLoading && graphs?.length === 0 && (
             <p className="text-xs text-[var(--text-muted)] px-2 py-6 text-center">
               No graphs yet. Use chat or upload content to get started.
@@ -1215,6 +1283,18 @@ export default function Home() {
                     sender: m.role as "user" | "assistant",
                     text: m.content,
                   })) || []}
+                  onMessagesUpdated={(nextMessages) => {
+                    setLocalGraphOverride((prev) => ({
+                      ...prev,
+                      [selectedGraphId]: {
+                        nodes: activeGraphData?.nodes || [],
+                        edges: activeGraphData?.edges || [],
+                        messages: nextMessages.map(m => ({ role: m.sender, content: m.text }))
+                      }
+                    }));
+                    queryClient.invalidateQueries({ queryKey: ["graphs"] });
+                  }}
+                  onProviderUpdated={(provider) => setActiveProvider(provider)}
                 />
               )}
             </div>
