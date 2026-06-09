@@ -18,7 +18,7 @@ export class ProviderUnavailableError extends Error {
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma:4b";
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
 export async function generateKnowledgeGraph(text: string): Promise<GraphOutput> {
   const systemPrompt = `You are a curriculum mapping assistant. Analyze the text and extract a knowledge graph in the exact JSON schema defined below.
@@ -60,8 +60,47 @@ Example output:
 Respond with ONLY the JSON object, no markdown, no explanation. Do not wrap in backticks unless absolutely necessary.`;
 
   const userPrompt = `Input text to analyze:\n\n${text}`;
+  const deepseekKey = process.env.DEEPSEEK_API_KEY || process.env.GROQ_API_KEY;
 
-  // 1. Try Ollama (Local Gemma 4B)
+  // 1. Try DeepSeek (Online) if key is present
+  if (deepseekKey) {
+    try {
+      console.log("[AI_SERVICE] Attempting DeepSeek (online) for document");
+      const response = await fetch(DEEPSEEK_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${deepseekKey}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (response.ok) {
+        const rawData = await response.json();
+        const rawText = rawData.choices?.[0]?.message?.content || "";
+        const parsedData = extractAndParseJSON(rawText);
+
+        if (parsedData) {
+          const validated = graphOutputSchema.parse(parsedData);
+          return validated;
+        }
+      } else {
+        console.warn(`[AI_SERVICE] DeepSeek online returned status ${response.status}. Falling back to Ollama.`);
+      }
+    } catch (err) {
+      console.warn("[AI_SERVICE] DeepSeek online failed. Falling back to Ollama:", err);
+    }
+  }
+
+  // 2. Fallback to Ollama (Local)
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       console.log(`[AI_SERVICE] Attempting Ollama (local) - Attempt ${attempt}`);
@@ -77,83 +116,36 @@ Respond with ONLY the JSON object, no markdown, no explanation. Do not wrap in b
         })
       });
 
-      if (!response.ok) {
-        throw new ProviderUnavailableError(`Ollama service returned ${response.status}`);
+      if (response.ok) {
+        const rawData = await response.json();
+        const rawText = rawData.response || "";
+        const parsedData = extractAndParseJSON(rawText);
+
+        if (parsedData) {
+          const validated = graphOutputSchema.parse(parsedData);
+          return validated;
+        }
       }
-
-      const rawData = await response.json();
-      const rawText = rawData.response || "";
-      const parsedData = extractAndParseJSON(rawText);
-
-      if (!parsedData) {
-        throw new InvalidOutputError("Failed to extract valid JSON structure from response.");
-      }
-
-      const validated = graphOutputSchema.parse(parsedData);
-      return validated;
     } catch (err) {
-      console.warn(`[AI_SERVICE] Ollama attempt ${attempt} failed:`, err instanceof Error ? err.message : String(err));
-      if (attempt === 3) {
-        console.log("[AI_SERVICE] Local Ollama exhausted. Falling back to Groq.");
-      }
+      console.warn(`[AI_SERVICE] Ollama attempt ${attempt} failed:`, err);
     }
   }
 
-  // 2. Fallback to Groq API
-  try {
-    const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) {
-      throw new ProviderUnavailableError("Groq API fallback unavailable (GROQ_API_KEY not configured).");
-    }
-
-    console.log("[AI_SERVICE] Executing fallback call to Groq");
-    const response = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${groqKey}`
-      },
-      body: JSON.stringify({
-        model: "mixtral-8x7b-32768",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.1,
-        response_format: { type: "json_object" }
-      })
-    });
-
-    if (!response.ok) {
-      throw new ProviderUnavailableError(`Groq returned ${response.status}`);
-    }
-
-    const rawData = await response.json();
-    const rawText = rawData.choices?.[0]?.message?.content || "";
-    const parsedData = extractAndParseJSON(rawText);
-
-    if (!parsedData) {
-      throw new InvalidOutputError("Failed to extract valid JSON structure from Groq.");
-    }
-
-    const validated = graphOutputSchema.parse(parsedData);
-    return validated;
-  } catch (error) {
-    console.warn("[AI_SERVICE] Both Ollama and Groq failed for document processing. Generating simulated graph:", error);
-    return {
-      nodes: [
-        { id: "intro", label: "Introduction", type: "CONCEPT", content: "Overview of the uploaded document contents and main themes.", difficulty: "BEGINNER" },
-        { id: "core-concept", label: "Core Concept", type: "CONCEPT", content: "The primary structural concept discussed inside the text.", difficulty: "INTERMEDIATE" },
-        { id: "def", label: "Formal Definition", type: "DEFINITION", content: "A defined statement explaining key terminology.", difficulty: "BEGINNER" },
-        { id: "example", label: "Applied Example", type: "EXAMPLE", content: "A practical application demonstrating the core concept in action.", difficulty: "INTERMEDIATE" }
-      ],
-      edges: [
-        { source: "intro", target: "core-concept", relationship: "explains", label: "guides" },
-        { source: "core-concept", target: "def", relationship: "includes", label: "defines" },
-        { source: "core-concept", target: "example", relationship: "explains", label: "demonstrates" }
-      ]
-    };
-  }
+  // 3. Last fallback: simulated mock data
+  console.warn("[AI_SERVICE] Both DeepSeek and Ollama failed. Generating simulated graph.");
+  return {
+    nodes: [
+      { id: "intro", label: "Introduction", type: "CONCEPT", content: "Overview of the uploaded document contents and main themes.", difficulty: "BEGINNER" },
+      { id: "core-concept", label: "Core Concept", type: "CONCEPT", content: "The primary structural concept discussed inside the text.", difficulty: "INTERMEDIATE" },
+      { id: "def", label: "Formal Definition", type: "DEFINITION", content: "A defined statement explaining key terminology.", difficulty: "BEGINNER" },
+      { id: "example", label: "Applied Example", type: "EXAMPLE", content: "A practical application demonstrating the core concept in action.", difficulty: "INTERMEDIATE" }
+    ],
+    edges: [
+      { source: "intro", target: "core-concept", relationship: "explains", label: "guides" },
+      { source: "core-concept", target: "def", relationship: "includes", label: "defines" },
+      { source: "core-concept", target: "example", relationship: "explains", label: "demonstrates" }
+    ]
+  };
 }
 
 export const chatGraphOutputSchema = z.object({
@@ -208,7 +200,47 @@ Guidelines:
     .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
     .join("\n")}\n\nGenerate the updated response and graph based on the latest query.`;
 
-  // 1. Try Ollama (Local Gemma 4B)
+  const deepseekKey = process.env.DEEPSEEK_API_KEY || process.env.GROQ_API_KEY;
+
+  // 1. Try DeepSeek (Online) if key is present
+  if (deepseekKey) {
+    try {
+      console.log("[AI_SERVICE] Attempting DeepSeek (online) for chat-build");
+      const response = await fetch(DEEPSEEK_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${deepseekKey}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          temperature: 0.3,
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (response.ok) {
+        const rawData = await response.json();
+        const rawText = rawData.choices?.[0]?.message?.content || "";
+        const parsedData = extractAndParseJSON(rawText);
+
+        if (parsedData) {
+          const validated = chatGraphOutputSchema.parse(parsedData);
+          return validated;
+        }
+      } else {
+        console.warn(`[AI_SERVICE] DeepSeek online returned status ${response.status}. Falling back to Ollama.`);
+      }
+    } catch (err) {
+      console.warn("[AI_SERVICE] DeepSeek online failed. Falling back to Ollama:", err);
+    }
+  }
+
+  // 2. Fallback to Ollama (Local)
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       console.log(`[AI_SERVICE] Attempting Ollama (local chat-build) - Attempt ${attempt}`);
@@ -224,98 +256,48 @@ Guidelines:
         })
       });
 
-      if (!response.ok) {
-        throw new ProviderUnavailableError(`Ollama service returned ${response.status}`);
+      if (response.ok) {
+        const rawData = await response.json();
+        const rawText = rawData.response || "";
+        const parsedData = extractAndParseJSON(rawText);
+
+        if (parsedData) {
+          const validated = chatGraphOutputSchema.parse(parsedData);
+          return validated;
+        }
       }
-
-      const rawData = await response.json();
-      const rawText = rawData.response || "";
-      const parsedData = extractAndParseJSON(rawText);
-
-      if (!parsedData) {
-        throw new InvalidOutputError("Failed to extract valid JSON structure from response.");
-      }
-
-      const validated = chatGraphOutputSchema.parse(parsedData);
-      return validated;
     } catch (err) {
-      console.warn(`[AI_SERVICE] Ollama attempt ${attempt} failed:`, err instanceof Error ? err.message : String(err));
+      console.warn(`[AI_SERVICE] Ollama attempt ${attempt} failed:`, err);
     }
   }
 
-  // 2. Fallback to Groq API
-  try {
-    const groqKey = process.env.GROQ_API_KEY;
-    if (!groqKey) {
-      throw new ProviderUnavailableError("Groq API fallback unavailable (GROQ_API_KEY not configured).");
+  // 3. Fallback to simulated response + mock graph generation
+  console.warn("[AI_SERVICE] Both DeepSeek and Ollama failed. Generating simulated learning response.");
+  const lastMessage = messages[messages.length - 1]?.content || "study topic";
+  const responseText = `Here's an explanation about "${lastMessage}". Let's add some core concept nodes to your visual graph so you can inspect them. Ask me follow-up questions to expand this!`;
+  const mockNodes = [
+    { id: "intro-node", label: lastMessage.slice(0, 15), type: "CONCEPT" as const, content: `Introduction to ${lastMessage}`, difficulty: "BEGINNER" as const },
+    { id: "def-node", label: "Definition", type: "DEFINITION" as const, content: `A formal definition of ${lastMessage}`, difficulty: "BEGINNER" as const }
+  ];
+  const mockEdges = [
+    { source: "intro-node", target: "def-node", relationship: "explains", label: "defines" }
+  ];
+
+  const graphNodes = currentGraph?.nodes && currentGraph.nodes.length > 0 ? [...currentGraph.nodes] : [];
+  const graphEdges = currentGraph?.edges && currentGraph.edges.length > 0 ? [...currentGraph.edges] : [];
+
+  mockNodes.forEach(mn => {
+    if (!graphNodes.find(n => n.id === mn.id)) graphNodes.push(mn);
+  });
+  mockEdges.forEach(me => {
+    if (!graphEdges.find(e => e.source === me.source && e.target === me.target)) graphEdges.push(me);
+  });
+
+  return {
+    response: responseText,
+    graph: {
+      nodes: graphNodes,
+      edges: graphEdges
     }
-
-    console.log("[AI_SERVICE] Executing fallback call to Groq (chat-build)");
-    const response = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${groqKey}`
-      },
-      body: JSON.stringify({
-        model: "mixtral-8x7b-32768",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.3,
-        response_format: { type: "json_object" }
-      })
-    });
-
-    if (!response.ok) {
-      throw new ProviderUnavailableError(`Groq returned ${response.status}`);
-    }
-
-    const rawData = await response.json();
-    const rawText = rawData.choices?.[0]?.message?.content || "";
-    const parsedData = extractAndParseJSON(rawText);
-
-    if (!parsedData) {
-      throw new InvalidOutputError("Failed to extract valid JSON structure from Groq.");
-    }
-
-    const validated = chatGraphOutputSchema.parse(parsedData);
-    return validated;
-  } catch (error) {
-    // Fallback to simulated response + mock graph generation if both are completely unavailable
-    console.warn("[AI_SERVICE] Both Ollama and Groq are down. Generating simulated learning response. Error:", error);
-    const lastMessage = messages[messages.length - 1]?.content || "study topic";
-    
-    // Simple rule-based mock response to make development robust even without LLM setup
-    const responseText = `Here's an explanation about "${lastMessage}". Let's add some core concept nodes to your visual graph so you can inspect them. Ask me follow-up questions to expand this!`;
-    const mockNodes = [
-      { id: "intro-node", label: lastMessage.slice(0, 15), type: "CONCEPT" as const, content: `Introduction to ${lastMessage}`, difficulty: "BEGINNER" as const },
-      { id: "def-node", label: "Definition", type: "DEFINITION" as const, content: `A formal definition of ${lastMessage}`, difficulty: "BEGINNER" as const }
-    ];
-    const mockEdges = [
-      { source: "intro-node", target: "def-node", relationship: "explains", label: "defines" }
-    ];
-
-    // Merge with currentGraph if it has nodes
-    const graphNodes = currentGraph?.nodes && currentGraph.nodes.length > 0 ? [...currentGraph.nodes] : [];
-    const graphEdges = currentGraph?.edges && currentGraph.edges.length > 0 ? [...currentGraph.edges] : [];
-
-    // Only add if not duplicate
-    mockNodes.forEach(mn => {
-      if (!graphNodes.find(n => n.id === mn.id)) graphNodes.push(mn);
-    });
-    mockEdges.forEach(me => {
-      if (!graphEdges.find(e => e.source === me.source && e.target === me.target)) graphEdges.push(me);
-    });
-
-    return {
-      response: responseText,
-      graph: {
-        nodes: graphNodes,
-        edges: graphEdges
-      }
-    };
-  }
+  };
 }
-
