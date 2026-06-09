@@ -17,6 +17,7 @@ export class ProviderUnavailableError extends Error {
 }
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma:4b";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export async function generateKnowledgeGraph(text: string): Promise<GraphOutput> {
@@ -68,7 +69,7 @@ Respond with ONLY the JSON object, no markdown, no explanation. Do not wrap in b
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gemma:4b",
+          model: OLLAMA_MODEL,
           system: systemPrompt,
           prompt: userPrompt,
           stream: false,
@@ -215,7 +216,7 @@ Guidelines:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "gemma:4b",
+          model: OLLAMA_MODEL,
           system: systemPrompt,
           prompt: userPrompt,
           stream: false,
