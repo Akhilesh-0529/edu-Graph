@@ -151,6 +151,7 @@ Respond with ONLY the JSON object, no markdown, no explanation. Do not wrap in b
 export const chatGraphOutputSchema = z.object({
   response: z.string(),
   graph: graphOutputSchema,
+  provider: z.string().optional(),
 });
 
 export type ChatGraphOutput = z.infer<typeof chatGraphOutputSchema>;
@@ -230,7 +231,10 @@ Guidelines:
 
         if (parsedData) {
           const validated = chatGraphOutputSchema.parse(parsedData);
-          return validated;
+          return {
+            ...validated,
+            provider: "DeepSeek (Online)",
+          };
         }
       } else {
         console.warn(`[AI_SERVICE] DeepSeek online returned status ${response.status}. Falling back to Ollama.`);
@@ -263,7 +267,10 @@ Guidelines:
 
         if (parsedData) {
           const validated = chatGraphOutputSchema.parse(parsedData);
-          return validated;
+          return {
+            ...validated,
+            provider: "Ollama Local (gemma4:e4b)",
+          };
         }
       }
     } catch (err) {
@@ -298,6 +305,7 @@ Guidelines:
     graph: {
       nodes: graphNodes,
       edges: graphEdges
-    }
+    },
+    provider: "Simulated Fallback (Offline)"
   };
 }

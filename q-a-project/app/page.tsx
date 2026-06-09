@@ -14,9 +14,10 @@ import {
   Menu,
   X,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import { useGraphs, GraphSummary } from "@/hooks/queries/useGraphs";
-import { useGraph } from "@/hooks/queries/useGraph";
+import { useGraph, GraphDetailResponse } from "@/hooks/queries/useGraph";
 import { useSendMessage } from "@/hooks/mutations/useSendMessage";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUploadContent } from "@/hooks/mutations/useUploadContent";
@@ -313,11 +314,15 @@ interface ChatMessage {
   text: string;
 }
 
-function ChatPanel({ graphId }: { graphId: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+function ChatPanel({ graphId, initialMessages = [] }: { graphId: string; initialMessages?: ChatMessage[] }) {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { mutate: sendMessage, isLoading } = useSendMessage();
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages, graphId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -427,15 +432,21 @@ function ChatPanel({ graphId }: { graphId: string }) {
 interface ChatToBuildPanelProps {
   graphId: string;
   initialTitle?: string;
-  onGraphUpdated: (nodes: GraphNode[], edges: GraphEdge[], newTitle?: string) => void;
+  onGraphUpdated: (nodes: GraphNode[], edges: GraphEdge[], nextMessages: ChatMessage[], newTitle?: string) => void;
+  onProviderUpdated: (provider: string) => void;
+  initialMessages?: ChatMessage[];
 }
 
-function ChatToBuildPanel({ graphId, initialTitle, onGraphUpdated }: ChatToBuildPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+function ChatToBuildPanel({ graphId, initialTitle, onGraphUpdated, onProviderUpdated, initialMessages = [] }: ChatToBuildPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages, graphId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -476,8 +487,10 @@ function ChatToBuildPanel({ graphId, initialTitle, onGraphUpdated }: ChatToBuild
           sender: "assistant",
           text: data.response,
         };
-        setMessages(prev => [...prev, assistantMsg]);
-        onGraphUpdated(data.graph.nodes, data.graph.edges, data.title);
+        const nextMessages = [...updatedMessages, assistantMsg];
+        setMessages(nextMessages);
+        onGraphUpdated(data.graph.nodes, data.graph.edges, nextMessages, data.title);
+        onProviderUpdated(data.provider || "DeepSeek (Online)");
         queryClient.invalidateQueries({ queryKey: ["graphs"] });
       } else {
         throw new Error("Chat build returned success=false");
@@ -821,15 +834,57 @@ export default function Home() {
   const [showChat, setShowChat] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Keep local graph overrides so chat-build updates show up instantly
-  const [localGraphOverride, setLocalGraphOverride] = useState<Record<string, GraphOutput>>({});
+  const [localGraphOverride, setLocalGraphOverride] = useState<Record<string, GraphDetailResponse>>({});
 
   const {
     data: graphData,
     isLoading: graphLoading,
     error: graphError,
   } = useGraph(selectedGraphId && !selectedGraphId.startsWith("chat-") ? selectedGraphId : "");
+
+  const isNewSession = selectedGraphId?.startsWith("chat-");
+  const isChatBuiltGraph = isNewSession || !!graphs?.find((g) => g.graphId === selectedGraphId)?.isChatBuilt;
+
+  // Sync activeProvider when a new graph is selected
+  useEffect(() => {
+    if (selectedGraphId) {
+      if (isNewSession) {
+        setActiveProvider(null);
+      } else {
+        const isChat = graphs?.find((g) => g.graphId === selectedGraphId)?.isChatBuilt;
+        setActiveProvider(isChat ? "DeepSeek (Online)" : null);
+      }
+    } else {
+      setActiveProvider(null);
+    }
+  }, [selectedGraphId, graphs, isNewSession]);
+
+  const handleClearChat = useCallback(async () => {
+    if (!selectedGraphId) return;
+    try {
+      const response = await fetch("/api/chat/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ graphId: selectedGraphId }),
+      });
+
+      if (response.ok) {
+        if (isChatBuiltGraph) {
+          setLocalGraphOverride((prev) => ({
+            ...prev,
+            [selectedGraphId]: { nodes: [], edges: [] },
+          }));
+        }
+        queryClient.invalidateQueries({ queryKey: ["graph", selectedGraphId] });
+        queryClient.invalidateQueries({ queryKey: ["graphs"] });
+      }
+    } catch (err) {
+      console.error("Failed to clear chat history:", err);
+    }
+  }, [selectedGraphId, isChatBuiltGraph, queryClient]);
 
   // Keyboard shortcut: ⌘K for search, Escape to close
   useEffect(() => {
@@ -878,8 +933,6 @@ export default function Home() {
     [graphData]
   );
 
-  const isNewSession = selectedGraphId?.startsWith("chat-");
-  const isChatBuiltGraph = isNewSession || !!graphs?.find((g) => g.graphId === selectedGraphId)?.isChatBuilt;
   const hasLocalData = selectedGraphId && !!localGraphOverride[selectedGraphId];
   const activeGraphData = selectedGraphId ? (localGraphOverride[selectedGraphId] || graphData) : null;
   
@@ -1005,6 +1058,18 @@ export default function Home() {
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">
               {currentGraphTitle}
             </h2>
+            {activeProvider && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border-card)] bg-[rgba(255,255,255,0.02)] text-[10px] font-mono text-[var(--text-secondary)]">
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  activeProvider.includes("Online") 
+                    ? "bg-green-500 shadow-lg shadow-green-500/50" 
+                    : activeProvider.includes("Local") 
+                    ? "bg-purple-500 shadow-lg shadow-purple-500/50" 
+                    : "bg-amber-500 shadow-lg shadow-amber-500/50"
+                }`} />
+                AI: {activeProvider}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {selectedGraphId && (
@@ -1106,25 +1171,51 @@ export default function Home() {
                     {isChatBuiltGraph ? "AI Tutor (Build Graph)" : "AI Q&A"}
                   </span>
                 </div>
-                <button
-                  onClick={() => setShowChat(false)}
-                  className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)]"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleClearChat}
+                    className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] hover:text-red-400 transition"
+                    title="Clear Chat History"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setShowChat(false)}
+                    className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)]"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               {isChatBuiltGraph ? (
                 <ChatToBuildPanel
                   graphId={selectedGraphId}
-                  onGraphUpdated={(nodes, edges, newTitle) => {
+                  initialMessages={activeGraphData?.messages?.map((m: any, idx: number) => ({
+                    id: `msg-${idx}`,
+                    sender: m.role as "user" | "assistant",
+                    text: m.content,
+                  })) || []}
+                  onGraphUpdated={(nodes, edges, nextMessages, newTitle) => {
                     setLocalGraphOverride((prev) => ({
                       ...prev,
-                      [selectedGraphId]: { nodes, edges },
+                      [selectedGraphId]: { 
+                        nodes, 
+                        edges, 
+                        messages: nextMessages.map(m => ({ role: m.sender, content: m.text })) 
+                      },
                     }));
                   }}
+                  onProviderUpdated={(provider) => setActiveProvider(provider)}
                 />
               ) : (
-                <ChatPanel graphId={selectedGraphId} />
+                <ChatPanel 
+                  graphId={selectedGraphId}
+                  initialMessages={activeGraphData?.messages?.map((m: any, idx: number) => ({
+                    id: `msg-${idx}`,
+                    sender: m.role as "user" | "assistant",
+                    text: m.content,
+                  })) || []}
+                />
               )}
             </div>
           )}

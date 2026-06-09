@@ -49,6 +49,10 @@ export async function POST(req: NextRequest) {
           nodes: result.graph.nodes,
           edges: result.graph.edges,
           isChatBuilt: true,
+          messages: [
+            ...validated.messages,
+            { role: "assistant", content: result.response }
+          ],
           updatedAt: new Date(),
         },
       },
@@ -61,6 +65,7 @@ export async function POST(req: NextRequest) {
       response: result.response,
       graph: result.graph,
       title: graphTitle,
+      provider: result.provider,
     });
   } catch (error) {
     console.error("[CHAT_BUILD_ERROR]", error);
