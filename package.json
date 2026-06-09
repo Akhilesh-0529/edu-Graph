@@ -1,0 +1,14 @@
+{
+  "name": "q-a-project-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix q-a-project",
+    "build": "npm run build --prefix q-a-project",
+    "start": "npm run start --prefix q-a-project",
+    "lint": "npm run lint --prefix q-a-project"
+  },
+  "dependencies": {
+    "firebase": "^12.14.0"
+  }
+}
