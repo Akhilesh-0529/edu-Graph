@@ -13,6 +13,7 @@ import { getPromptWorkspacesByWorkspaceId } from "@/db/prompts"
 import { getAssistantImageFromStorage } from "@/db/storage/assistant-images"
 import { getToolWorkspacesByWorkspaceId } from "@/db/tools"
 import { getWorkspaceById } from "@/db/workspaces"
+import { getGraphWorkspacesByWorkspaceId } from "@/db/knowledge-graphs"
 import { convertBlobToBase64 } from "@/lib/blob-to-b64"
 import { supabase } from "@/lib/supabase/browser-client"
 import { LLMID } from "@/types"
@@ -37,6 +38,8 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     setAssistantImages,
     setChats,
     setCollections,
+    setGraphs,
+    setSelectedGraph,
     setFolders,
     setFiles,
     setPresets,
@@ -77,6 +80,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     setUserInput("")
     setChatMessages([])
     setSelectedChat(null)
+    setSelectedGraph(null)
 
     setIsGenerating(false)
     setFirstTokenReceived(false)
@@ -137,6 +141,9 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     const collectionData =
       await getCollectionWorkspacesByWorkspaceId(workspaceId)
     setCollections(collectionData.collections)
+
+    const graphsData = await getGraphWorkspacesByWorkspaceId(workspaceId)
+    setGraphs(graphsData.graphs)
 
     const folders = await getFoldersByWorkspaceId(workspaceId)
     setFolders(folders)

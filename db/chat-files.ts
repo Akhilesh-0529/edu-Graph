@@ -12,9 +12,9 @@ export const getChatFilesByChatId = async (chatId: string) => {
     `
     )
     .eq("id", chatId)
-    .single()
+    .maybeSingle()
 
-  if (!chatFiles) {
+  if (error) {
     throw new Error(error.message)
   }
 

@@ -117,6 +117,9 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
   const [openrouterAPIKey, setOpenrouterAPIKey] = useState(
     profile?.openrouter_api_key || ""
   )
+  const [deepseekAPIKey, setDeepseekAPIKey] = useState(
+    profile?.deepseek_api_key || ""
+  )
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -157,7 +160,8 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
       azure_openai_45_turbo_id: azureOpenai45TurboID,
       azure_openai_45_vision_id: azureOpenai45VisionID,
       azure_openai_embeddings_id: azureEmbeddingsID,
-      openrouter_api_key: openrouterAPIKey
+      openrouter_api_key: openrouterAPIKey,
+      deepseek_api_key: deepseekAPIKey
     })
 
     setProfile(updatedProfile)
@@ -172,7 +176,8 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
       "mistral",
       "groq",
       "perplexity",
-      "openrouter"
+      "openrouter",
+      "deepseek"
     ]
 
     providers.forEach(async provider => {
@@ -719,6 +724,22 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
                       type="password"
                       value={openrouterAPIKey}
                       onChange={e => setOpenrouterAPIKey(e.target.value)}
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                {envKeyMap["deepseek"] ? (
+                  <Label>DeepSeek API key set by admin.</Label>
+                ) : (
+                  <>
+                    <Label>DeepSeek API Key</Label>
+                    <Input
+                      placeholder="DeepSeek API Key"
+                      type="password"
+                      value={deepseekAPIKey}
+                      onChange={e => setDeepseekAPIKey(e.target.value)}
                     />
                   </>
                 )}

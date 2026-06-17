@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils"
 import { ContentType } from "@/types"
 import { IconChevronCompactRight } from "@tabler/icons-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { FC, useState } from "react"
+import { FC, useState, useContext } from "react"
 import { useSelectFileHandler } from "../chat/chat-hooks/use-select-file-handler"
 import { CommandK } from "../utility/command-k"
+import { ChatbotUIContext } from "@/context/context"
+import { KnowledgeGraphView } from "@/components/knowledge-graph/knowledge-graph-view"
 
 export const SIDEBAR_WIDTH = 350
 
@@ -28,6 +30,7 @@ export const Dashboard: FC<DashboardProps> = ({ children }) => {
   const tabValue = searchParams.get("tab") || "chats"
 
   const { handleSelectDeviceFile } = useSelectFileHandler()
+  const { selectedGraph } = useContext(ChatbotUIContext)
 
   const [contentType, setContentType] = useState<ContentType>(
     tabValue as ContentType
@@ -109,6 +112,8 @@ export const Dashboard: FC<DashboardProps> = ({ children }) => {
           <div className="flex h-full items-center justify-center bg-black/50 text-2xl text-white">
             drop file here
           </div>
+        ) : (contentType === "graphs" && selectedGraph) ? (
+          <KnowledgeGraphView />
         ) : (
           children
         )}

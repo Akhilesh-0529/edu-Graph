@@ -11,6 +11,7 @@ import {
 import { AssistantImage } from "@/types/images/assistant-image"
 import { VALID_ENV_KEYS } from "@/types/valid-keys"
 import { Dispatch, SetStateAction, createContext } from "react"
+import { FullGraph } from "@/types/knowledge-graph"
 
 interface ChatbotUIContext {
   // PROFILE STORE
@@ -22,6 +23,8 @@ interface ChatbotUIContext {
   setAssistants: Dispatch<SetStateAction<Tables<"assistants">[]>>
   collections: Tables<"collections">[]
   setCollections: Dispatch<SetStateAction<Tables<"collections">[]>>
+  graphs: Tables<"graphs">[]
+  setGraphs: Dispatch<SetStateAction<Tables<"graphs">[]>>
   chats: Tables<"chats">[]
   setChats: Dispatch<SetStateAction<Tables<"chats">[]>>
   files: Tables<"files">[]
@@ -58,6 +61,8 @@ interface ChatbotUIContext {
   // PRESET STORE
   selectedPreset: Tables<"presets"> | null
   setSelectedPreset: Dispatch<SetStateAction<Tables<"presets"> | null>>
+  selectedGraph: FullGraph | null
+  setSelectedGraph: Dispatch<SetStateAction<FullGraph | null>>
 
   // ASSISTANT STORE
   selectedAssistant: Tables<"assistants"> | null
@@ -148,6 +153,8 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
   setAssistants: () => {},
   collections: [],
   setCollections: () => {},
+  graphs: [],
+  setGraphs: () => {},
   chats: [],
   setChats: () => {},
   files: [],
@@ -184,6 +191,8 @@ export const ChatbotUIContext = createContext<ChatbotUIContext>({
   // PRESET STORE
   selectedPreset: null,
   setSelectedPreset: () => {},
+  selectedGraph: null,
+  setSelectedGraph: () => {},
 
   // ASSISTANT STORE
   selectedAssistant: null,

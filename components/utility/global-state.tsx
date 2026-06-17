@@ -26,6 +26,7 @@ import {
 import { AssistantImage } from "@/types/images/assistant-image"
 import { VALID_ENV_KEYS } from "@/types/valid-keys"
 import { useRouter } from "next/navigation"
+import { FullGraph } from "@/types/knowledge-graph"
 import { FC, useEffect, useState } from "react"
 
 interface GlobalStateProps {
@@ -41,6 +42,7 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
   // ITEMS STORE
   const [assistants, setAssistants] = useState<Tables<"assistants">[]>([])
   const [collections, setCollections] = useState<Tables<"collections">[]>([])
+  const [graphs, setGraphs] = useState<Tables<"graphs">[]>([])
   const [chats, setChats] = useState<Tables<"chats">[]>([])
   const [files, setFiles] = useState<Tables<"files">[]>([])
   const [folders, setFolders] = useState<Tables<"folders">[]>([])
@@ -66,6 +68,7 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
   // PRESET STORE
   const [selectedPreset, setSelectedPreset] =
     useState<Tables<"presets"> | null>(null)
+  const [selectedGraph, setSelectedGraph] = useState<FullGraph | null>(null)
 
   // ASSISTANT STORE
   const [selectedAssistant, setSelectedAssistant] =
@@ -209,6 +212,8 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
         setAssistants,
         collections,
         setCollections,
+        graphs,
+        setGraphs,
         chats,
         setChats,
         files,
@@ -245,6 +250,8 @@ export const GlobalState: FC<GlobalStateProps> = ({ children }) => {
         // PRESET STORE
         selectedPreset,
         setSelectedPreset,
+        selectedGraph,
+        setSelectedGraph,
 
         // ASSISTANT STORE
         selectedAssistant,

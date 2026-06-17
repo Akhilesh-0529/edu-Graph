@@ -101,6 +101,17 @@ export const ModelIcon: FC<ModelIconProps> = ({
           height={height}
         />
       )
+    case "deepseek":
+      return (
+        <IconSparkles
+          className={cn(
+            "rounded-sm p-1 bg-white text-black",
+            props.className,
+            theme === "dark" ? "bg-white" : "border-DEFAULT border-black"
+          )}
+          size={width}
+        />
+      )
     default:
       return <IconSparkles size={width} />
   }

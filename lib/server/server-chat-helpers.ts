@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
 export async function getServerProfile() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -47,6 +47,7 @@ function addApiKeysToProfile(profile: Tables<"profiles">) {
     [VALID_ENV_KEYS.PERPLEXITY_API_KEY]: "perplexity_api_key",
     [VALID_ENV_KEYS.AZURE_OPENAI_API_KEY]: "azure_openai_api_key",
     [VALID_ENV_KEYS.OPENROUTER_API_KEY]: "openrouter_api_key",
+    [VALID_ENV_KEYS.DEEPSEEK_API_KEY]: "deepseek_api_key",
 
     [VALID_ENV_KEYS.OPENAI_ORGANIZATION_ID]: "openai_organization_id",
 

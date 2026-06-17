@@ -7,6 +7,7 @@ import { updateModel } from "@/db/models"
 import { updatePreset } from "@/db/presets"
 import { updatePrompt } from "@/db/prompts"
 import { updateTool } from "@/db/tools"
+import { updateGraph } from "@/db/knowledge-graphs"
 import { cn } from "@/lib/utils"
 import { Tables } from "@/supabase/types"
 import { ContentType, DataItemType, DataListType } from "@/types"
@@ -21,6 +22,7 @@ import { ModelItem } from "./items/models/model-item"
 import { PresetItem } from "./items/presets/preset-item"
 import { PromptItem } from "./items/prompts/prompt-item"
 import { ToolItem } from "./items/tools/tool-item"
+import { GraphItem } from "./items/graphs/graph-item"
 
 interface SidebarDataListProps {
   contentType: ContentType
@@ -41,7 +43,8 @@ export const SidebarDataList: FC<SidebarDataListProps> = ({
     setCollections,
     setAssistants,
     setTools,
-    setModels
+    setModels,
+    setGraphs
   } = useContext(ChatbotUIContext)
 
   const divRef = useRef<HTMLDivElement>(null)
@@ -87,6 +90,9 @@ export const SidebarDataList: FC<SidebarDataListProps> = ({
 
       case "models":
         return <ModelItem key={item.id} model={item as Tables<"models">} />
+
+      case "graphs":
+        return <GraphItem key={item.id} graph={item as Tables<"graphs">} />
 
       default:
         return null
@@ -140,7 +146,8 @@ export const SidebarDataList: FC<SidebarDataListProps> = ({
     collections: updateCollection,
     assistants: updateAssistant,
     tools: updateTool,
-    models: updateModel
+    models: updateModel,
+    graphs: updateGraph
   }
 
   const stateUpdateFunctions = {
@@ -151,7 +158,8 @@ export const SidebarDataList: FC<SidebarDataListProps> = ({
     collections: setCollections,
     assistants: setAssistants,
     tools: setTools,
-    models: setModels
+    models: setModels,
+    graphs: setGraphs
   }
 
   const updateFolder = async (itemId: string, folderId: string | null) => {

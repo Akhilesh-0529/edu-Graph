@@ -124,14 +124,18 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
 
     const chatFiles = await getChatFilesByChatId(params.chatid as string)
 
-    setChatFiles(
-      chatFiles.files.map(file => ({
-        id: file.id,
-        name: file.name,
-        type: file.type,
-        file: null
-      }))
-    )
+    if (chatFiles) {
+      setChatFiles(
+        chatFiles.files.map(file => ({
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          file: null
+        }))
+      )
+    } else {
+      setChatFiles([])
+    }
 
     setUseRetrieval(true)
     setShowFilesDisplay(true)

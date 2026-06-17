@@ -7,6 +7,11 @@ export type LLMID =
   | MistralLLMID
   | GroqLLMID
   | PerplexityLLMID
+  | DeepSeekLLMID
+
+export type DeepSeekLLMID =
+  | "deepseek-chat"
+  | "deepseek-coder"
 
 // OpenAI Models (UPDATED 5/13/24)
 export type OpenAILLMID =

@@ -11,6 +11,26 @@ import { cookies } from "next/headers"
 import { ReactNode } from "react"
 import "./globals.css"
 
+if (process.env.NODE_ENV === "development") {
+  const originalError = console.error
+  console.error = (...args: any[]) => {
+    const msg = args.map(a => String(a)).join(" ")
+    if (msg.includes("Accessing element.ref was removed in React 19")) {
+      return
+    }
+    originalError(...args)
+  }
+
+  const originalWarn = console.warn
+  console.warn = (...args: any[]) => {
+    const msg = args.map(a => String(a)).join(" ")
+    if (msg.includes("Accessing element.ref was removed in React 19")) {
+      return
+    }
+    originalWarn(...args)
+  }
+}
+
 const inter = Inter({ subsets: ["latin"] })
 const APP_NAME = "Chatbot UI"
 const APP_DEFAULT_TITLE = "Chatbot UI"
@@ -19,9 +39,9 @@ const APP_DESCRIPTION = "Chabot UI PWA!"
 
 interface RootLayoutProps {
   children: ReactNode
-  params: {
+  params: Promise<{
     locale: string
-  }
+  }>
 }
 
 export const metadata: Metadata = {
@@ -68,9 +88,10 @@ const i18nNamespaces = ["translation"]
 
 export default async function RootLayout({
   children,
-  params: { locale }
+  params
 }: RootLayoutProps) {
-  const cookieStore = cookies()
+  const { locale } = await params
+  const cookieStore = await cookies()
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -88,7 +109,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <Providers attribute="class" defaultTheme="dark">
           <TranslationsProvider
             namespaces={i18nNamespaces}

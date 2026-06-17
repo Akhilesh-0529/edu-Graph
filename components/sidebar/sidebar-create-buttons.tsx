@@ -12,6 +12,7 @@ import { CreateModel } from "./items/models/create-model"
 import { CreatePreset } from "./items/presets/create-preset"
 import { CreatePrompt } from "./items/prompts/create-prompt"
 import { CreateTool } from "./items/tools/create-tool"
+import { CreateGraph } from "./items/graphs/create-graph"
 
 interface SidebarCreateButtonsProps {
   contentType: ContentType
@@ -33,6 +34,7 @@ export const SidebarCreateButtons: FC<SidebarCreateButtonsProps> = ({
   const [isCreatingAssistant, setIsCreatingAssistant] = useState(false)
   const [isCreatingTool, setIsCreatingTool] = useState(false)
   const [isCreatingModel, setIsCreatingModel] = useState(false)
+  const [isCreatingGraph, setIsCreatingGraph] = useState(false)
 
   const handleCreateFolder = async () => {
     if (!profile) return
@@ -88,6 +90,11 @@ export const SidebarCreateButtons: FC<SidebarCreateButtonsProps> = ({
       case "models":
         return async () => {
           setIsCreatingModel(true)
+        }
+
+      case "graphs":
+        return async () => {
+          setIsCreatingGraph(true)
         }
 
       default:
@@ -150,6 +157,13 @@ export const SidebarCreateButtons: FC<SidebarCreateButtonsProps> = ({
         <CreateModel
           isOpen={isCreatingModel}
           onOpenChange={setIsCreatingModel}
+        />
+      )}
+
+      {isCreatingGraph && (
+        <CreateGraph
+          isOpen={isCreatingGraph}
+          onOpenChange={setIsCreatingGraph}
         />
       )}
     </div>

@@ -78,6 +78,8 @@ import {
   updateTool
 } from "@/db/tools"
 import { convertBlobToBase64 } from "@/lib/blob-to-b64"
+import { updateGraph } from "@/db/knowledge-graphs"
+import { supabase } from "@/lib/supabase/browser-client"
 import { Tables, TablesUpdate } from "@/supabase/types"
 import { CollectionFile, ContentType, DataItemType } from "@/types"
 import { FC, useContext, useEffect, useRef, useState } from "react"
@@ -113,6 +115,7 @@ export const SidebarUpdateItem: FC<SidebarUpdateItemProps> = ({
     setAssistants,
     setTools,
     setModels,
+    setGraphs,
     setAssistantImages
   } = useContext(ChatbotUIContext)
 
@@ -196,7 +199,8 @@ export const SidebarUpdateItem: FC<SidebarUpdateItemProps> = ({
       setSelectedAssistantTools
     },
     tools: null,
-    models: null
+    models: null,
+    graphs: null
   }
 
   const fetchDataFunctions = {
@@ -226,7 +230,8 @@ export const SidebarUpdateItem: FC<SidebarUpdateItemProps> = ({
       setSelectedAssistantTools([])
     },
     tools: null,
-    models: null
+    models: null,
+    graphs: null
   }
 
   const fetchWorkpaceFunctions = {
@@ -258,6 +263,14 @@ export const SidebarUpdateItem: FC<SidebarUpdateItemProps> = ({
     models: async (modelId: string) => {
       const item = await getModelWorkspacesByModelId(modelId)
       return item.workspaces
+    },
+    graphs: async (graphId: string) => {
+      const { data } = await supabase
+        .from("graphs")
+        .select("id, workspaces(*)")
+        .eq("id", graphId)
+        .single()
+      return (data as any)?.workspaces || []
     }
   }
 
@@ -568,6 +581,10 @@ export const SidebarUpdateItem: FC<SidebarUpdateItemProps> = ({
       )
 
       return updatedModel
+    },
+    graphs: async (graphId: string, updateState: TablesUpdate<"graphs">) => {
+      const updatedGraph = await updateGraph(graphId, updateState)
+      return updatedGraph
     }
   }
 
@@ -579,7 +596,8 @@ export const SidebarUpdateItem: FC<SidebarUpdateItemProps> = ({
     collections: setCollections,
     assistants: setAssistants,
     tools: setTools,
-    models: setModels
+    models: setModels,
+    graphs: setGraphs
   }
 
   const handleUpdate = async () => {

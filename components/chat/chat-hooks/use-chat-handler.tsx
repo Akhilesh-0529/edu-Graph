@@ -8,6 +8,8 @@ import { deleteMessagesIncludingAndAfter } from "@/db/messages"
 import { buildFinalMessages } from "@/lib/build-prompt"
 import { Tables } from "@/supabase/types"
 import { ChatMessage, ChatPayload, LLMID, ModelProvider } from "@/types"
+import { getGraphDetails } from "@/db/knowledge-graphs"
+import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useContext, useEffect, useRef } from "react"
 import { LLM_LIST } from "../../../lib/models/llm/llm-list"
@@ -38,6 +40,8 @@ export const useChatHandler = () => {
     selectedWorkspace,
     setSelectedChat,
     setChats,
+    selectedGraph,
+    setSelectedGraph,
     setSelectedTools,
     availableLocalModels,
     availableOpenRouterModels,
@@ -382,6 +386,34 @@ export const useChatHandler = () => {
 
       setIsGenerating(false)
       setFirstTokenReceived(false)
+
+      if (selectedGraph) {
+        toast.info("Updating graph with concepts from conversation...")
+        try {
+          const extractResponse = await fetch("/api/chat/extract-graph", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              graphId: selectedGraph.graph.id,
+              text: generatedText,
+              workspaceId: selectedWorkspace!.id,
+              useLocal: modelData?.provider === "ollama"
+            })
+          })
+
+          if (extractResponse.ok) {
+            const reloaded = await getGraphDetails(selectedGraph.graph.id)
+            if (reloaded) {
+              setSelectedGraph(reloaded)
+              toast.success("Graph updated with new concepts!")
+            }
+          } else {
+            console.error("Failed to extract concepts from message:", await extractResponse.text())
+          }
+        } catch (err) {
+          console.error("Auto-extraction after chat message failed:", err)
+        }
+      }
     } catch (error) {
       setIsGenerating(false)
       setFirstTokenReceived(false)
