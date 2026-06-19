@@ -1,6 +1,6 @@
 # EduSphère & Interactive Knowledge Graph
 
-EduSphère is a premium, state-of-the-art educational extension built on top of the open-source **Chatbot UI** project. It transforms standard chat interfaces into interactive, spatial educational canvases where students and educators can map out concepts, discover connections, attach workspace documents to specific topics, and dynamically generate concept maps from real-time conversations.
+EduSphère is a premium, state-of-the-art visual extension built on top of the open-source **Chatbot UI** project. It transforms standard chat interfaces into interactive, spatial canvases where users can map out concepts, discover connections, attach workspace documents to specific topics, and dynamically generate concept maps from real-time conversations.
 
 <img src="./public/readme/screenshot.png" alt="EduSphère Concept Canvas" width="700" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-top: 15px; margin-bottom: 25px;">
 
@@ -27,7 +27,7 @@ EduSphère is a premium, state-of-the-art educational extension built on top of 
 * **"Ask AI" Concept Q&A**: Bind documents (PDF, Markdown, TXT) uploaded in your workspace directly to any concept node. Click **"Ask AI"** to automatically load those files as chat context and start an AI Q&A focused on that specific concept.
 
 ### 🧠 Intelligent Concept Auto-Extraction
-* **Doc-to-Graph Extraction**: Select one or more workspace documents, and let the NLP extraction pipeline automatically parse their content, identify key academic topics, map relationship vectors, and render them on your canvas.
+* **Doc-to-Graph Extraction**: Select one or more workspace documents, and let the NLP extraction pipeline automatically parse their content, identify key topics, map relationship vectors, and render them on your canvas.
 * **Conversational Syncing**: When a graph is selected, active chat conversations automatically scan assistant responses and insert newly discussed concepts into the canvas in real-time.
 * **Fail-Safe Processing Pipeline**: Extractor requests route via **DeepSeek** (optimized for speed/cost) ➡️ fallback to **OpenAI (GPT-4 Turbo)** ➡️ fallback to local **Ollama (`gemma2:2b`)** if cloud APIs are offline.
 
@@ -129,7 +129,7 @@ The project follows a Next.js App Router structure with localized routes, dynami
 ├── lib/                      # Helper utilities, custom hooks, lists
 │   ├── hooks/                # Keyboard inputs, clipboard hooks
 │   ├── models/               # Pricing lists, config settings, provider arrays
-│   ├── server/               # Auth helpers & admin profile settings
+│   ├── server/               # Auth helpers & profile settings
 │   └── supabase/             # Client, browser, and middleware SSR instances
 ├── supabase/                 # Supabase configuration & migrations
 │   ├── migrations/           # Database schemas versioned SQL history
@@ -259,7 +259,7 @@ When documents are passed to the `/api/chat/extract-graph` API, a serverless req
 
 ### Real-Time Conversational Sync
 
-When a user is actively chatting with an assistant while a Knowledge Graph is open on their dashboard:
+When a user is actively chatting with an assistant while a Knowledge Graph is open in their workspace:
 
 1. The client-side hook [use-chat-handler.tsx](file:///Users/akhileshyerram/chatbot-ui/components/chat/chat-hooks/use-chat-handler.tsx) processes the request.
 2. Once the final token of the assistant's response is received, the client detects if `selectedGraph` is active.
