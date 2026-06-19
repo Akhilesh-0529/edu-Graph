@@ -2,8 +2,6 @@
 
 EduSphère is a premium, state-of-the-art extension built on top of the open-source **Chatbot UI** project. It transforms standard linear chat interfaces into a dynamic, spatial workspace. Users can map out concepts, discover hidden connections, bind workspace documents directly to specific topics, and dynamically generate interactive knowledge graphs from real-time conversations.
 
-<img src="./public/readme/screenshot.png" alt="EduSphère Concept Canvas" width="800" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
-
 ---
 
 ## 🚀 Key Capabilities
