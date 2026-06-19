@@ -28,7 +28,7 @@ export const useKnowledgeGraph = () => {
     availableLocalModels
   } = useContext(ChatbotUIContext)
 
-  const { handleNewChat } = useChatHandler()
+  const { handleNewChat, handleSendMessage } = useChatHandler()
 
   // SVG viewport transforms
   const [zoom, setZoom] = useState(1.0)
@@ -301,7 +301,7 @@ export const useKnowledgeGraph = () => {
   }
 
   // Ask AI Helper
-  const handleAskAI = () => {
+  const handleAskAI = async () => {
     if (!selectedNode) return
     // Gather linked files
     const associatedFiles = selectedNode.files || []
@@ -312,11 +312,13 @@ export const useKnowledgeGraph = () => {
       file: null
     }))
 
+    await handleNewChat(true)
+
     setNewMessageFiles(mappedFiles)
-    setUserInput(
-      `Please explain the concept of "${selectedNode.name}" in detail, referencing the attached files. Explain how it works and any relevant subtopics.`
-    )
-    handleNewChat(true)
+    const promptText = `Please explain the concept of "${selectedNode.name}" in detail, referencing the attached files. Explain how it works and any relevant subtopics.`
+    setUserInput(promptText)
+
+    handleSendMessage(promptText, [], false, mappedFiles)
   }
 
   // Spring Physics Force Auto-Layout
@@ -326,17 +328,17 @@ export const useKnowledgeGraph = () => {
     let tempNodes = selectedGraph.nodes.map(n => ({ ...n }))
     const links = selectedGraph.links
 
-    const width = 600
-    const height = 400
+    const width = 1000
+    const height = 800
     const center = { x: width / 2, y: height / 2 }
 
-    const kRepel = 2500 // Coulomb constant
-    const kAttract = 0.05 // Spring stiffness
-    const linkDistance = 120 // Desired edge length
+    const kRepel = 12000 // Coulomb constant
+    const kAttract = 0.04 // Spring stiffness
+    const linkDistance = 150 // Desired edge length
     const centerGravity = 0.01
 
-    // Run 80 iterations synchronously for instant neat layout
-    for (let iter = 0; iter < 80; iter++) {
+    // Run 100 iterations synchronously for instant neat layout
+    for (let iter = 0; iter < 100; iter++) {
       // 1. Initialize forces
       const fx = new Array(tempNodes.length).fill(0)
       const fy = new Array(tempNodes.length).fill(0)
@@ -349,7 +351,7 @@ export const useKnowledgeGraph = () => {
           const d2 = dx * dx + dy * dy + 0.1
           const d = Math.sqrt(d2)
 
-          if (d < 300) {
+          if (d < 600) {
             const force = kRepel / d2
             const fX = (dx / d) * force
             const fY = (dy / d) * force

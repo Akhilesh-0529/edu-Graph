@@ -11,8 +11,11 @@ import { getMessageImageFromStorage } from "@/db/storage/message-images"
 import { convertBlobToBase64 } from "@/lib/blob-to-b64"
 import useHotkey from "@/lib/hooks/use-hotkey"
 import { LLMID, MessageImage } from "@/types"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { FC, useContext, useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase/browser-client"
+import { Button } from "../ui/button"
+import { IconLogout } from "@tabler/icons-react"
 import { ChatHelp } from "./chat-help"
 import { useScroll } from "./chat-hooks/use-scroll"
 import { ChatInput } from "./chat-input"
@@ -26,6 +29,15 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
   useHotkey("o", () => handleNewChat())
 
   const params = useParams()
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    await fetch("/api/auth/signout", { method: "POST" })
+    await supabase.auth.signOut()
+    const locale = params.locale as string ?? "en"
+    router.push(`/${locale}/login`)
+    router.refresh()
+  }
 
   const {
     setChatMessages,
@@ -215,6 +227,14 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
 
       <div className="absolute right-4 top-1 flex h-[40px] items-center space-x-2">
         <ChatSecondaryButtons />
+        <Button
+          className="size-[36px] cursor-pointer rounded hover:opacity-50"
+          size="icon"
+          variant="ghost"
+          onClick={handleSignOut}
+        >
+          <IconLogout size={20} />
+        </Button>
       </div>
 
       <div className="bg-secondary flex max-h-[50px] min-h-[50px] w-full items-center justify-center border-b-2 font-bold">

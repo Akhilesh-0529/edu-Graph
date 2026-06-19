@@ -12,7 +12,7 @@ import {
 } from "@/lib/models/fetch-models"
 import { supabase } from "@/lib/supabase/browser-client"
 import { TablesUpdate } from "@/supabase/types"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useContext, useEffect, useState } from "react"
 import { APIStep } from "../../../components/setup/api-step"
 import { FinishStep } from "../../../components/setup/finish-step"
@@ -34,6 +34,7 @@ export default function SetupPage() {
   } = useContext(ChatbotUIContext)
 
   const router = useRouter()
+  const params = useParams()
 
   const [loading, setLoading] = useState(true)
 
@@ -66,7 +67,8 @@ export default function SetupPage() {
       const session = (await supabase.auth.getSession()).data.session
 
       if (!session) {
-        return router.push("/login")
+        const locale = params.locale as string ?? "en"
+        return router.push(`/${locale}/login`)
       } else {
         const user = session.user
 
@@ -114,7 +116,8 @@ export default function SetupPage() {
   const handleSaveSetupSetting = async () => {
     const session = (await supabase.auth.getSession()).data.session
     if (!session) {
-      return router.push("/login")
+      const locale = params.locale as string ?? "en"
+      return router.push(`/${locale}/login`)
     }
 
     const user = session.user

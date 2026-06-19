@@ -1,7 +1,7 @@
 "use client"
 
 import { supabase } from "@/lib/supabase/browser-client"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { FC, useState } from "react"
 import { Button } from "../ui/button"
 import {
@@ -18,6 +18,7 @@ interface ChangePasswordProps {}
 
 export const ChangePassword: FC<ChangePasswordProps> = () => {
   const router = useRouter()
+  const params = useParams()
 
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -29,7 +30,8 @@ export const ChangePassword: FC<ChangePasswordProps> = () => {
 
     toast.success("Password changed successfully.")
 
-    return router.push("/login")
+    const locale = params.locale as string ?? "en"
+    return router.push(`/${locale}/login`)
   }
 
   return (

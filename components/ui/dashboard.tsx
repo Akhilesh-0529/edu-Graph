@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import { ContentType } from "@/types"
 import { IconChevronCompactRight, IconHierarchy } from "@tabler/icons-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { FC, useState, useContext } from "react"
+import { FC, useState, useContext, useEffect } from "react"
 import { useSelectFileHandler } from "../chat/chat-hooks/use-select-file-handler"
 import { CommandK } from "../utility/command-k"
 import { ChatbotUIContext } from "@/context/context"
@@ -35,6 +35,11 @@ export const Dashboard: FC<DashboardProps> = ({ children }) => {
   const [contentType, setContentType] = useState<ContentType>(
     tabValue as ContentType
   )
+
+  useEffect(() => {
+    setContentType(tabValue as ContentType)
+  }, [tabValue])
+
   const [showSidebar, setShowSidebar] = useState(
     localStorage.getItem("showSidebar") === "true"
   )

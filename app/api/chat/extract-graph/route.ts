@@ -225,10 +225,27 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
 
     const nameToIdMap = new Map<string, string>()
 
+    // Fetch existing nodes to prevent duplication
+    const { data: existingNodes, error: existingNodesError } = await supabaseAdmin
+      .from("graph_nodes")
+      .select("id, name")
+      .eq("graph_id", graphId)
+
+    if (!existingNodesError && existingNodes) {
+      existingNodes.forEach(node => {
+        nameToIdMap.set(node.name.toLowerCase().trim(), node.id)
+      })
+    }
+
     // Insert Nodes
     for (const node of extractedNodes) {
-      const nodeName = node.name || node.concept || node.title || ""
+      const nodeName = (node.name || node.concept || node.title || "").trim()
       if (!nodeName) continue
+
+      const lowerName = nodeName.toLowerCase()
+      if (nameToIdMap.has(lowerName)) {
+        continue
+      }
 
       const { data: createdNode, error: nodeError } = await supabaseAdmin
         .from("graph_nodes")
@@ -238,8 +255,8 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
           description: node.description || "",
           color: node.color || "#3b82f6",
           size: 15,
-          x: Math.random() * 400 + 100,
-          y: Math.random() * 300 + 100
+          x: Math.random() * 800 + 200,
+          y: Math.random() * 600 + 100
         })
         .select("id, name")
         .single()
@@ -253,6 +270,19 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
       }
     }
 
+    // Fetch existing links to prevent duplication
+    const { data: existingLinks, error: existingLinksError } = await supabaseAdmin
+      .from("graph_links")
+      .select("source_node_id, target_node_id")
+      .eq("graph_id", graphId)
+
+    const existingLinksSet = new Set<string>()
+    if (!existingLinksError && existingLinks) {
+      existingLinks.forEach(l => {
+        existingLinksSet.add(`${l.source_node_id}->${l.target_node_id}`)
+      })
+    }
+
     // Insert Links
     for (const link of extractedLinks) {
       const sourceName = link.source_concept || link.source || link.from || ""
@@ -264,6 +294,11 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
         const targetId = nameToIdMap.get(targetName.toLowerCase().trim())
 
         if (sourceId && targetId) {
+          const linkKey = `${sourceId}->${targetId}`
+          if (existingLinksSet.has(linkKey)) {
+            continue
+          }
+
           const { error: linkError } = await supabaseAdmin
             .from("graph_links")
             .insert({
@@ -275,8 +310,101 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
 
           if (linkError) {
             console.error("Error creating link:", linkError)
+          } else {
+            existingLinksSet.add(linkKey)
           }
         }
+      }
+    }
+
+    // Run backend force-directed layout to automatically space out nodes
+    const { data: finalNodes } = await supabaseAdmin
+      .from("graph_nodes")
+      .select("*")
+      .eq("graph_id", graphId)
+
+    const { data: finalLinks } = await supabaseAdmin
+      .from("graph_links")
+      .select("*")
+      .eq("graph_id", graphId)
+
+    if (finalNodes && finalNodes.length > 0) {
+      let tempNodes = finalNodes.map(n => ({ ...n }))
+      const links = finalLinks || []
+
+      const width = 1000
+      const height = 800
+      const center = { x: width / 2, y: height / 2 }
+
+      const kRepel = 12000
+      const kAttract = 0.04
+      const linkDistance = 150
+      const centerGravity = 0.01
+
+      for (let iter = 0; iter < 100; iter++) {
+        const fx = new Array(tempNodes.length).fill(0)
+        const fy = new Array(tempNodes.length).fill(0)
+
+        // Repulsion force
+        for (let i = 0; i < tempNodes.length; i++) {
+          for (let j = i + 1; j < tempNodes.length; j++) {
+            const dx = tempNodes[i].x - tempNodes[j].x
+            const dy = tempNodes[i].y - tempNodes[j].y
+            const d2 = dx * dx + dy * dy + 0.1
+            const d = Math.sqrt(d2)
+
+            if (d < 600) {
+              const force = kRepel / d2
+              const fX = (dx / d) * force
+              const fY = (dy / d) * force
+
+              fx[i] += fX
+              fy[i] += fY
+              fx[j] -= fX
+              fy[j] -= fY
+            }
+          }
+        }
+
+        // Attraction force
+        for (const link of links) {
+          const i = tempNodes.findIndex(n => n.id === link.source_node_id)
+          const j = tempNodes.findIndex(n => n.id === link.target_node_id)
+          if (i === -1 || j === -1) continue
+
+          const dx = tempNodes[i].x - tempNodes[j].x
+          const dy = tempNodes[i].y - tempNodes[j].y
+          const d = Math.sqrt(dx * dx + dy * dy) + 0.1
+
+          const force = kAttract * (d - linkDistance)
+          const fX = (dx / d) * force
+          const fY = (dy / d) * force
+
+          fx[i] -= fX
+          fy[i] -= fY
+          fx[j] += fX
+          fy[j] += fY
+        }
+
+        // Central gravity force
+        for (let i = 0; i < tempNodes.length; i++) {
+          fx[i] -= (tempNodes[i].x - center.x) * centerGravity
+          fy[i] -= (tempNodes[i].y - center.y) * centerGravity
+        }
+
+        // Update positions
+        for (let i = 0; i < tempNodes.length; i++) {
+          tempNodes[i].x += fx[i] * 0.5
+          tempNodes[i].y += fy[i] * 0.5
+        }
+      }
+
+      // Update backend database coordinates
+      for (const node of tempNodes) {
+        await supabaseAdmin
+          .from("graph_nodes")
+          .update({ x: node.x, y: node.y })
+          .eq("id", node.id)
       }
     }
 

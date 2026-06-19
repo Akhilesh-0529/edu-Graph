@@ -36,9 +36,9 @@ export function LoginForm({
 
   // Demo credentials mapping
   const demoCredentials: Record<Role, { email: string; pass: string }> = {
-    student: { email: "test@test.com", pass: "password" },
-    teacher: { email: "test@test.com", pass: "password" },
-    admin: { email: "test@test.com", pass: "password" }
+    student: { email: "student@test.com", pass: "password" },
+    teacher: { email: "teacher@test.com", pass: "password" },
+    admin: { email: "admin@test.com", pass: "password" }
   }
 
   // Pre-fill fields when role changes
@@ -50,6 +50,11 @@ export function LoginForm({
     }
   }, [role, mode])
 
+  // Sync incoming URL message param to state
+  useEffect(() => {
+    setMessage(initialMessage || "")
+  }, [initialMessage])
+
   const handleAction = async (e: React.FormEvent<HTMLFormElement>, actionFn: (formData: FormData) => Promise<void>) => {
     e.preventDefault()
     setLoading(true)
@@ -60,10 +65,14 @@ export function LoginForm({
     if (mode !== "reset") {
       formData.append("password", password)
     }
+    formData.append("role", role)
 
     try {
       await actionFn(formData)
     } catch (err: any) {
+      if (err.message === "NEXT_REDIRECT" || err.digest?.startsWith("NEXT_REDIRECT")) {
+        throw err
+      }
       setMessage(err.message || "An unexpected error occurred.")
     } finally {
       setLoading(false)
@@ -106,7 +115,7 @@ export function LoginForm({
         </div>
 
         {/* Mode Selector (Sign In vs Sign Up vs Reset) */}
-        {mode === "signin" && (
+        {(mode === "signin" || mode === "signup") && (
           <div className="mb-6">
             <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-neutral-500">
               Select Your Role

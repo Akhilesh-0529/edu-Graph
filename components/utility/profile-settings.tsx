@@ -22,7 +22,7 @@ import {
   IconUser
 } from "@tabler/icons-react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { FC, useCallback, useContext, useRef, useState } from "react"
 import { toast } from "sonner"
 import { SIDEBAR_ICON_SIZE } from "../sidebar/sidebar-switcher"
@@ -35,9 +35,15 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle,
-  SheetTrigger
+  SheetTitle
 } from "../ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "../ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
 import { TextareaAutosize } from "../ui/textarea-autosize"
 import { WithTooltip } from "../ui/with-tooltip"
@@ -56,6 +62,7 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
   } = useContext(ChatbotUIContext)
 
   const router = useRouter()
+  const params = useParams()
 
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -122,8 +129,10 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
   )
 
   const handleSignOut = async () => {
+    await fetch("/api/auth/signout", { method: "POST" })
     await supabase.auth.signOut()
-    router.push("/login")
+    const locale = params.locale as string ?? "en"
+    router.push(`/${locale}/login`)
     router.refresh()
     return
   }
@@ -299,28 +308,49 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
   if (!profile) return null
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        {profile.image_url ? (
-          <Image
-            className="mt-2 size-[34px] cursor-pointer rounded hover:opacity-50"
-            src={profile.image_url + "?" + new Date().getTime()}
-            height={34}
-            width={34}
-            alt={"Image"}
-          />
-        ) : (
-          <Button size="icon" variant="ghost">
-            <IconUser size={SIDEBAR_ICON_SIZE} />
-          </Button>
-        )}
-      </SheetTrigger>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          {profile.image_url ? (
+            <Image
+              className="mt-2 size-[34px] cursor-pointer rounded hover:opacity-50"
+              src={profile.image_url + "?" + new Date().getTime()}
+              height={34}
+              width={34}
+              alt={"Image"}
+            />
+          ) : (
+            <Button size="icon" variant="ghost">
+              <IconUser size={SIDEBAR_ICON_SIZE} />
+            </Button>
+          )}
+        </DropdownMenuTrigger>
 
-      <SheetContent
-        className="flex flex-col justify-between"
-        side="left"
-        onKeyDown={handleKeyDown}
-      >
+        <DropdownMenuContent align="end" side="right" className="p-1.5 w-48">
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => setIsOpen(true)}
+          >
+            <IconUser className="mr-2" size={18} />
+            Profile Settings
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/20"
+            onClick={handleSignOut}
+          >
+            <IconLogout className="mr-2" size={18} />
+            Logout
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetContent
+          className="flex flex-col justify-between"
+          side="left"
+          onKeyDown={handleKeyDown}
+        >
         <div className="grow overflow-auto">
           <SheetHeader>
             <SheetTitle className="flex items-center justify-between space-x-2">
@@ -780,5 +810,6 @@ export const ProfileSettings: FC<ProfileSettingsProps> = ({}) => {
         </div>
       </SheetContent>
     </Sheet>
+    </>
   )
 }

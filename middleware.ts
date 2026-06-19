@@ -7,8 +7,9 @@ export async function middleware(request: NextRequest) {
   try {
     const { supabase, response } = createClient(request)
 
-    const sessionResponse = await supabase.auth.getSession()
-    const session = sessionResponse.data.session
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
 
     const pathname = request.nextUrl.pathname
 
@@ -45,18 +46,31 @@ export async function middleware(request: NextRequest) {
       return redirectResponse
     }
 
-    if (session) {
+    if (user) {
       // Authenticated user path
       if (isRoot || isLogin) {
         // Query home workspace
         const { data: homeWorkspace } = await supabase
           .from("workspaces")
           .select("*")
-          .eq("user_id", session.user.id)
+          .eq("user_id", user.id)
           .eq("is_home", true)
           .single()
 
         if (homeWorkspace) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("user_id", user.id)
+            .single()
+
+          const userRole = profile?.role || "student"
+
+          if (userRole === "teacher") {
+            return getRedirectResponse(`/${homeWorkspace.id}/teacher`)
+          } else if (userRole === "admin") {
+            return getRedirectResponse(`/${homeWorkspace.id}/admin`)
+          }
           return getRedirectResponse(`/${homeWorkspace.id}/chat`)
         } else {
           return getRedirectResponse(`/setup`)
@@ -68,7 +82,7 @@ export async function middleware(request: NextRequest) {
         const { data: workspaces } = await supabase
           .from("workspaces")
           .select("id")
-          .eq("user_id", session.user.id)
+          .eq("user_id", user.id)
 
         if (!workspaces || workspaces.length === 0) {
           return getRedirectResponse(`/setup`)

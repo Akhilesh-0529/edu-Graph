@@ -1,6 +1,7 @@
 "use client"
 
 import { ChatHelp } from "@/components/chat/chat-help"
+import { ContactTeacher } from "@/components/chat/contact-teacher"
 import { useChatHandler } from "@/components/chat/chat-hooks/use-chat-handler"
 import { ChatInput } from "@/components/chat/chat-input"
 import { ChatSettings } from "@/components/chat/chat-settings"
@@ -11,6 +12,10 @@ import { ChatbotUIContext } from "@/context/context"
 import useHotkey from "@/lib/hooks/use-hotkey"
 import { useTheme } from "next-themes"
 import { useContext } from "react"
+import { useRouter, useParams } from "next/navigation"
+import { supabase } from "@/lib/supabase/browser-client"
+import { Button } from "@/components/ui/button"
+import { IconLogout } from "@tabler/icons-react"
 
 export default function ChatPage() {
   useHotkey("o", () => handleNewChat())
@@ -23,6 +28,16 @@ export default function ChatPage() {
   const { handleNewChat, handleFocusChatInput } = useChatHandler()
 
   const { theme } = useTheme()
+  const router = useRouter()
+  const params = useParams()
+
+  const handleSignOut = async () => {
+    await fetch("/api/auth/signout", { method: "POST" })
+    await supabase.auth.signOut()
+    const locale = params.locale as string ?? "en"
+    router.push(`/${locale}/login`)
+    router.refresh()
+  }
 
   return (
     <>
@@ -36,8 +51,16 @@ export default function ChatPage() {
             <QuickSettings />
           </div>
 
-          <div className="absolute right-2 top-2">
+          <div className="absolute right-2 top-2 flex items-center gap-2">
             <ChatSettings />
+            <Button
+              className="size-[36px] cursor-pointer rounded hover:opacity-50"
+              size="icon"
+              variant="ghost"
+              onClick={handleSignOut}
+            >
+              <IconLogout size={20} />
+            </Button>
           </div>
 
           <div className="flex grow flex-col items-center justify-center" />
@@ -46,7 +69,8 @@ export default function ChatPage() {
             <ChatInput />
           </div>
 
-          <div className="absolute bottom-2 right-2 hidden md:block lg:bottom-4 lg:right-4">
+          <div className="absolute bottom-2 right-2 hidden md:flex items-center gap-2 lg:bottom-4 lg:right-4">
+            <ContactTeacher />
             <ChatHelp />
           </div>
         </div>

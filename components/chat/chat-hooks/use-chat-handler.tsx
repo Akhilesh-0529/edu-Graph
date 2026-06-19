@@ -199,7 +199,8 @@ export const useChatHandler = () => {
   const handleSendMessage = async (
     messageContent: string,
     chatMessages: ChatMessage[],
-    isRegeneration: boolean
+    isRegeneration: boolean,
+    overrideFiles?: any[]
   ) => {
     const startingInput = messageContent
 
@@ -240,16 +241,17 @@ export const useChatHandler = () => {
       const b64Images = newMessageImages.map(image => image.base64)
 
       let retrievedFileItems: Tables<"file_items">[] = []
+      const filesToUse = overrideFiles || newMessageFiles
 
       if (
-        (newMessageFiles.length > 0 || chatFiles.length > 0) &&
+        (filesToUse.length > 0 || chatFiles.length > 0) &&
         useRetrieval
       ) {
         setToolInUse("retrieval")
 
         retrievedFileItems = await handleRetrieval(
-          userInput,
-          newMessageFiles,
+          messageContent,
+          filesToUse,
           chatFiles,
           chatSettings!.embeddingsProvider,
           sourceCount
@@ -353,7 +355,7 @@ export const useChatHandler = () => {
           selectedWorkspace!,
           messageContent,
           selectedAssistant!,
-          newMessageFiles,
+          filesToUse,
           setSelectedChat,
           setChats,
           setChatFiles

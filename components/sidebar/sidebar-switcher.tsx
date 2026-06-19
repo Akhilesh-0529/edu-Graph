@@ -8,13 +8,18 @@ import {
   IconPencil,
   IconRobotFace,
   IconSparkles,
-  IconHierarchy
+  IconHierarchy,
+  IconSchool,
+  IconShield
 } from "@tabler/icons-react"
-import { FC } from "react"
+import { FC, useContext } from "react"
 import { TabsList } from "../ui/tabs"
 import { WithTooltip } from "../ui/with-tooltip"
 import { ProfileSettings } from "../utility/profile-settings"
 import { SidebarSwitchItem } from "./sidebar-switch-item"
+import { ChatbotUIContext } from "@/context/context"
+import { useRouter } from "next/navigation"
+import { Button } from "../ui/button"
 
 export const SIDEBAR_ICON_SIZE = 28
 
@@ -25,6 +30,8 @@ interface SidebarSwitcherProps {
 export const SidebarSwitcher: FC<SidebarSwitcherProps> = ({
   onContentTypeChange
 }) => {
+  const { profile, selectedWorkspace } = useContext(ChatbotUIContext)
+  const router = useRouter()
   return (
     <div className="flex flex-col justify-between border-r-2 pb-5">
       <TabsList className="bg-background grid h-[490px] grid-rows-9">
@@ -89,6 +96,38 @@ export const SidebarSwitcher: FC<SidebarSwitcherProps> = ({
 
         {/* TODO */}
         {/* <Alerts /> */}
+
+        {profile?.role === "teacher" && (
+          <WithTooltip
+            display={<div>Teacher Dashboard</div>}
+            trigger={
+              <Button
+                className="size-[34px] cursor-pointer rounded hover:opacity-50"
+                size="icon"
+                variant="ghost"
+                onClick={() => router.push(`/${selectedWorkspace?.id}/teacher`)}
+              >
+                <IconSchool size={SIDEBAR_ICON_SIZE} />
+              </Button>
+            }
+          />
+        )}
+
+        {profile?.role === "admin" && (
+          <WithTooltip
+            display={<div>Admin Dashboard</div>}
+            trigger={
+              <Button
+                className="size-[34px] cursor-pointer rounded hover:opacity-50"
+                size="icon"
+                variant="ghost"
+                onClick={() => router.push(`/${selectedWorkspace?.id}/admin`)}
+              >
+                <IconShield size={SIDEBAR_ICON_SIZE} />
+              </Button>
+            }
+          />
+        )}
 
         <WithTooltip
           display={<div>Profile Settings</div>}

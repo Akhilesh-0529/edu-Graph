@@ -67,7 +67,8 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       const session = (await supabase.auth.getSession()).data.session
 
       if (!session) {
-        return router.push("/login")
+        const locale = params.locale as string ?? "en"
+        return router.push(`/${locale}/login`)
       } else {
         await fetchWorkspaceData(workspaceId)
       }

@@ -1201,6 +1201,7 @@ export type Database = {
           openrouter_api_key: string | null
           perplexity_api_key: string | null
           profile_context: string
+          role: string
           updated_at: string | null
           use_azure_openai: boolean
           user_id: string
@@ -1230,6 +1231,7 @@ export type Database = {
           openrouter_api_key?: string | null
           perplexity_api_key?: string | null
           profile_context: string
+          role?: string
           updated_at?: string | null
           use_azure_openai: boolean
           user_id: string
@@ -1259,6 +1261,7 @@ export type Database = {
           openrouter_api_key?: string | null
           perplexity_api_key?: string | null
           profile_context?: string
+          role?: string
           updated_at?: string | null
           use_azure_openai?: boolean
           user_id?: string
@@ -1343,6 +1346,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "folders"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_queries: {
+        Row: {
+          answered_by: string | null
+          created_at: string
+          id: string
+          query_text: string
+          response_text: string | null
+          student_id: string
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          answered_by?: string | null
+          created_at?: string
+          id?: string
+          query_text: string
+          response_text?: string | null
+          student_id: string
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          answered_by?: string | null
+          created_at?: string
+          id?: string
+          query_text?: string
+          response_text?: string | null
+          student_id?: string
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_queries_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "student_queries_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -1528,6 +1579,9 @@ export type Database = {
         Args: { bucket_name: string; object_path: string }
         Returns: Record<string, unknown>
       }
+      is_admin: { Args: never; Returns: boolean }
+      is_student: { Args: never; Returns: boolean }
+      is_teacher: { Args: never; Returns: boolean }
       match_file_items_local: {
         Args: {
           file_ids?: string[]
