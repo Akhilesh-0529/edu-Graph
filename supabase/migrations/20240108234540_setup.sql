@@ -4,6 +4,9 @@ create extension http with schema extensions;
 -- Enable vector extension
 create extension vector with schema extensions;
 
+-- Enable uuid-ossp extension
+create extension if not exists "uuid-ossp" with schema extensions;
+
 -- Function to update modified column
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
