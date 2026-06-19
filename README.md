@@ -1,41 +1,28 @@
-# EduSphère & Interactive Knowledge Graph
+# EduSphère: Interactive Knowledge Canvas & AI Chat Workspace
 
-EduSphère is a premium, state-of-the-art visual extension built on top of the open-source **Chatbot UI** project. It transforms standard chat interfaces into interactive, spatial canvases where users can map out concepts, discover connections, attach workspace documents to specific topics, and dynamically generate concept maps from real-time conversations.
+EduSphère is a premium, state-of-the-art extension built on top of the open-source **Chatbot UI** project. It transforms standard linear chat interfaces into a dynamic, spatial workspace. Users can map out concepts, discover hidden connections, bind workspace documents directly to specific topics, and dynamically generate interactive knowledge graphs from real-time conversations.
 
-<img src="./public/readme/screenshot.png" alt="EduSphère Concept Canvas" width="700" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-top: 15px; margin-bottom: 25px;">
-
----
-
-## Table of Contents
-1. [Core Features](#1-core-features)
-2. [System Architecture](#2-system-architecture)
-3. [Directory & Project Structure](#3-directory--project-structure)
-4. [Database Schema & Security](#4-database-schema--security)
-5. [Technical Walkthroughs](#5-technical-walkthroughs)
-   - [Physics-Based Auto-Layout (Align Graph)](#physics-based-auto-layout-align-graph)
-   - [Auto-Concept Extraction & Resilient Fallback](#auto-concept-extraction--resilient-fallback)
-   - [Real-Time Conversational Sync](#real-time-conversational-sync)
-6. [Local Setup & Developer Quickstart](#6-local-setup--developer-quickstart)
+<img src="./public/readme/screenshot.png" alt="EduSphère Concept Canvas" width="800" style="border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
 
 ---
 
-## 1. Core Features
+## 🚀 Key Capabilities
 
-### 🎓 Interactive Concept Visualizer
-* **SVG Canvas Viewport**: A zoomable ($0.5\times$ to $2.0\times$) and pannable SVG workspace with grid background lines, drag-and-drop coordinate persistence, and smooth glows matching HSL category colors.
-* **Flexible Concept Management**: Click-to-select concept nodes, edit details, customize category coloring, and link nodes together using custom labels (e.g. *"requires"*, *"leads to"*, *"implements"*).
-* **"Ask AI" Concept Q&A**: Bind documents (PDF, Markdown, TXT) uploaded in your workspace directly to any concept node. Click **"Ask AI"** to automatically load those files as chat context and start an AI Q&A focused on that specific concept.
+### 🗺️ Interactive Concept Canvas
+* **Precision Viewport**: A highly responsive, zoomable ($0.5\times$ to $2.0\times$) and pannable SVG workspace equipped with custom grid line backgrounds, drag-and-drop node positioning, and smooth glowing indicators.
+* **Semantic Relationships**: Edit nodes, customize color themes, and connect concepts using custom link labels (e.g., *“requires”*, *“implements”*, *“extends”*).
+* **Context-Bound Q&A (“Ask AI”)**: Attach workspace files (PDFs, Markdown, text files) directly to any canvas node. Clicking **“Ask AI”** feeds those targeted documents straight into the chat context for node-specific queries.
 
 ### 🧠 Intelligent Concept Auto-Extraction
-* **Doc-to-Graph Extraction**: Select one or more workspace documents, and let the NLP extraction pipeline automatically parse their content, identify key topics, map relationship vectors, and render them on your canvas.
-* **Conversational Syncing**: When a graph is selected, active chat conversations automatically scan assistant responses and insert newly discussed concepts into the canvas in real-time.
-* **Fail-Safe Processing Pipeline**: Extractor requests route via **DeepSeek** (optimized for speed/cost) ➡️ fallback to **OpenAI (GPT-4 Turbo)** ➡️ fallback to local **Ollama (`gemma2:2b`)** if cloud APIs are offline.
+* **Doc-to-Graph Parsing**: Feed documents into the NLP extraction pipeline to automatically isolate core terms, construct relationship links, and map them to the canvas.
+* **Conversational Sync**: The canvas scans assistant responses in real-time, instantly extracting and rendering new concept nodes as the conversation unfolds.
+* **Resilient Multi-LLM Fallback**: Extraction requests flow through a high-availability pipeline: **DeepSeek** (primary) ➡️ **OpenAI GPT-4 Turbo** (secondary) ➡️ Local **Ollama (`gemma2:2b`)** (local fallback).
 
 ---
 
-## 2. System Architecture
+## 🏗️ System Architecture
 
-The following architecture diagram outlines how the client-side UI, serverless Next.js API routes, Supabase backend databases, and LLM providers interface with each other.
+The following diagram illustrates the interaction flow between the client interface, Serverless Next.js API endpoints, Supabase database layers, and LLM providers.
 
 ```mermaid
 graph TD
@@ -45,8 +32,7 @@ graph TD
     classDef database fill:#14532d,stroke:#4ade80,stroke-width:2px,color:#f8fafc;
     classDef providers fill:#701a75,stroke:#f472b6,stroke-width:2px,color:#f8fafc;
 
-    %% Subgraphs
-    subgraph React Client [React Client-Side UI]
+    subgraph Client [React & SVG Client-Side UI]
         Canvas[SVG Canvas Viewport]
         Drawer[Concept Detail Drawer]
         ChatUI[Chat Interface]
@@ -58,7 +44,7 @@ graph TD
         ChatRoute[/api/chat/*\]
     end
 
-    subgraph DB [Supabase Database & Storage]
+    subgraph DB [Supabase Backend]
         Tables[(PostgreSQL Tables)]
         Storage[(Workspace Files)]
     end
@@ -86,7 +72,6 @@ graph TD
     DeepSeek -.->|If Fails| OpenAI
     OpenAI -.->|If Fails| Ollama
 
-    %% Class assignment
     class Canvas,Drawer,ChatUI,Ctx client;
     class ExRoute,ChatRoute server;
     class Tables,Storage database;
@@ -95,54 +80,48 @@ graph TD
 
 ---
 
-## 3. Directory & Project Structure
-
-The project follows a Next.js App Router structure with localized routes, dynamic supabase connections, and clear component isolation:
+## 📁 Repository Structure
 
 ```
-├── app/                      # Next.js App Router folders
-│   ├── [locale]/             # Localized routes (multilingual support)
-│   │   ├── [workspaceid]/    # Workspace scoping
-│   │   │   ├── chat/         # Active conversation page
-│   │   │   └── layout.tsx    # Workspace navigation & frame
-│   │   ├── setup/            # User onboarding & profile setup
-│   │   └── login/            # User auth pages (login, registration)
-│   ├── api/                  # Serverless endpoint handlers
-│   │   └── chat/             # Chat routes & tool actions
-│   │       ├── extract-graph/# AI NLP graph extractor endpoint
-│   │       └── [provider]/   # Model provider routers (DeepSeek, OpenAI, etc.)
-│   ├── auth/                 # OAuth / Supabase login callback handlers
-│   └── middleware.ts         # Authentication & localization router middleware
-├── components/               # React components directory
-│   ├── chat/                 # Chat panel inputs, picker listings, helpers
-│   ├── knowledge-graph/      # Canvas visualizer, math physics, and dialog forms
-│   ├── messages/             # Message bubbles, codeblocks, formatting
-│   ├── models/               # Model selection selectors & icons
-│   ├── sidebar/              # Workspace navigation toggles & list elements
-│   ├── ui/                   # Reusable shadcn base elements
-│   └── utility/              # Command palette, draw sheets, translation providers
-├── db/                       # Database wrappers interacting with Supabase client
-│   ├── chats.ts              # Chats management
-│   ├── files.ts              # File upload descriptors
-│   ├── knowledge-graphs.ts   # Graph nodes, edges, file maps CRUD operations
-│   └── messages.ts           # Message entries
-├── lib/                      # Helper utilities, custom hooks, lists
-│   ├── hooks/                # Keyboard inputs, clipboard hooks
-│   ├── models/               # Pricing lists, config settings, provider arrays
+├── app/                      # Next.js App Router
+│   ├── [locale]/             # Multi-language translations & routing
+│   │   ├── [workspaceid]/    # Workspace navigation boundaries
+│   │   │   ├── chat/         # Live chat interfaces
+│   │   │   └── layout.tsx    # Layout framing & navigation
+│   │   ├── setup/            # User onboarding flows
+│   │   └── login/            # Authentication interface
+│   ├── api/                  # Backend API routes
+│   │   └── chat/             # Chat endpoints & graph extraction
+│   │       ├── extract-graph/# Auto-concept extraction engine
+│   │       └── [provider]/   # Router configurations for LLM providers
+│   ├── auth/                 # Supabase session handlers
+│   └── middleware.ts         # Internationalization & session middleware
+├── components/               # React UI Components
+│   ├── chat/                 # Chat interface panels & prompt inputs
+│   ├── knowledge-graph/      # Interactive SVG canvas & physical layout logic
+│   ├── messages/             # Markdown & code block formatting
+│   ├── models/               # Model selector dropdowns
+│   ├── sidebar/              # Workspace sidebar & navigation list items
+│   ├── ui/                   # Reusable base elements (shadcn/radix)
+│   └── utility/              # Command palette, sheets, and drawers
+├── db/                       # Database clients & query definitions
+│   ├── chats.ts              # Chat metadata CRUD operations
+│   ├── files.ts              # File metadata & document linking
+│   ├── knowledge-graphs.ts   # Graph structure (nodes, edges, node-files) queries
+│   └── messages.ts           # Chat histories & system prompts
+├── lib/                      # Core helpers & config models
+│   ├── hooks/                # User input and session hooks
+│   ├── models/               # Config defaults & provider metadata
 │   ├── server/               # Auth helpers & profile settings
-│   └── supabase/             # Client, browser, and middleware SSR instances
-├── supabase/                 # Supabase configuration & migrations
-│   ├── migrations/           # Database schemas versioned SQL history
-│   └── seed.sql              # Seed data for testing profiles
-├── types/                    # TypeScript interfaces & declarations
-└── public/                   # Public asset folders (icons, localizations)
+│   └── supabase/             # Supabase clients (browser, server, middleware SSR)
+└── supabase/                 # Supabase configuration & migrations
 ```
 
 ---
 
-## 4. Database Schema & Security
+## 💾 Database Schema & Security
 
-EduSphère stores concept nodes, links, and file associations using PostgreSQL. High-level relationships are shown in the Entity-Relationship diagram below:
+EduSphère relies on structured tables in PostgreSQL to manage and connect concepts, files, and user workspaces.
 
 ```mermaid
 erDiagram
@@ -210,99 +189,70 @@ erDiagram
     }
 ```
 
-### 🔒 Row-Level Security (RLS) policies
-All tables have RLS enabled to prevent cross-tenant access:
-* **`graphs`**: Read/write policies restricted via `user_id = auth.uid()`.
-* **`graph_nodes` & `graph_links`**: Access checked dynamically by verifying if the parent `graph_id` is linked to a record in `graphs` belonging to `auth.uid()`.
-* **`graph_node_files`**: Mapped links restricted by verification against the creating user's ID.
+### 🔒 Row-Level Security (RLS) Policies
+PostgreSQL Row-Level Security ensures strong tenant isolation across all user data:
+* **`graphs`**: Read/write access is restricted exclusively to the graph owner: `user_id = auth.uid()`.
+* **`graph_nodes` & `graph_links`**: Access is authorized by joining the parent graph and verifying `user_id = auth.uid()`.
+* **`graph_node_files`**: Junction mapping permissions are verified against the active user's credentials.
 
 ---
 
-## 5. Technical Walkthroughs
+## ⚙️ Core Technical Logic
 
-### Physics-Based Auto-Layout (Align Graph)
+### 1. Physics-Based Auto-Layout
+When a layout is cluttered, clicking **"Align Graph"** initiates an 80-iteration **Force-Directed Spring Simulation** calculated in client-side memory:
 
-The concept map's layout engine uses a customized **Force-Directed Spring Simulation** to organize messy node meshes. Clicking **"Align Graph"** triggers 80 iterations of a physical simulation directly on the nodes:
+1. **Coulomb's Law (Node Repulsion)**: Spreads nodes apart to resolve overlaps.
+   $$F_{\text{repel}} = \frac{k_{\text{repel}}}{d^2} \quad \text{where } k_{\text{repel}} = 2500, \ d = \text{distance}$$
+2. **Hooke's Law (Link Attraction)**: Pulls connected nodes toward a natural distance.
+   $$F_{\text{attract}} = k_{\text{attract}} \times (d - d_{\text{target}}) \quad \text{where } k_{\text{attract}} = 0.05, \ d_{\text{target}} = 120$$
+3. **Central Gravity**: Prevents disconnected nodes from floating off the screen boundaries.
+4. **State Persistence**: The calculated coordinates $(x, y)$ are saved back to Supabase in a batch write.
 
-1. **Coulomb's Law (Repulsion Force)**: Every node repels other nodes to prevent overlap.
-   $$F_{repel} = \frac{k_{repel}}{d^2} \quad \text{where } k_{repel} = 2500, \ d = \text{distance}$$
-2. **Hooke's Law (Spring Attraction Force)**: Connected nodes are pulled closer together.
-   $$F_{attract} = k_{attract} \times (d - d_{target}) \quad \text{where } k_{attract} = 0.05, \ d_{target} = 120$$
-3. **Gravity Force**: Pulls all nodes slightly toward the layout center to avoid canvas drifting.
-4. **Coordinate Saving**: The positions $(x, y)$ calculated at the final step are written back to the database in bulk using parallel queries to `updateGraphNode`.
-
----
-
-### Auto-Concept Extraction & Resilient Fallback
-
-When documents are passed to the `/api/chat/extract-graph` API, a serverless request orchestrates the extraction process:
-
-```
-[Extract Call] ──> Read file_items content ──> Generate Prompts 
-                     │
-                     ▼
-             [1. DeepSeek API] ──(Success)──> Parse JSON ──> DB Insert
-                     │
-                 (Fails / Offline)
-                     ▼
-             [2. OpenAI API] ──(Success)──> Parse JSON ──> DB Insert
-                     │
-                 (Fails / Offline)
-                     ▼
-             [3. Local Ollama] ──(Success)──> Parse JSON ──> DB Insert
-```
-
-* **Prompt Engineering**: The LLM receives strict instructions to parse the text and structure output *only* as a specified JSON object format detailing nodes and edges.
-* **JSON Filtering**: To ensure robustness against conversational fluff, the API filters the response content, extracting substring JSON structures starting from the first `{` and ending at the last `}` before running the parser.
+### 2. Conversational Syncing
+When a user chats with the AI assistant on an active workspace:
+1. The [use-chat-handler.tsx](file:///Users/akhileshyerram/chatbot-ui/components/chat/chat-hooks/use-chat-handler.tsx) hook captures the completed message streams.
+2. The client routes the assistant's response to `/api/chat/extract-graph`.
+3. The LLM extracts newly introduced concepts, returns them as clean JSON structures, and automatically generates new nodes and edges on the current canvas.
 
 ---
 
-### Real-Time Conversational Sync
+## 🛠️ Local Development Quickstart
 
-When a user is actively chatting with an assistant while a Knowledge Graph is open in their workspace:
+Follow these steps to run the workspace server locally:
 
-1. The client-side hook [use-chat-handler.tsx](file:///Users/akhileshyerram/chatbot-ui/components/chat/chat-hooks/use-chat-handler.tsx) processes the request.
-2. Once the final token of the assistant's response is received, the client detects if `selectedGraph` is active.
-3. It triggers a background POST request to `/api/chat/extract-graph` sending the text of the assistant's answer.
-4. The backend LLM extracts newly introduced concepts from the response, links them to parent nodes, and saves them to PostgreSQL.
-5. The client triggers a state reload (`getGraphDetails`), and the concept canvas updates on-the-fly, allowing the map to grow dynamically with the chat.
+### 1. Prerequisite Installations
+* **Node.js**: Version 18 or higher.
+* **Docker**: Required for running the local Supabase container environment.
+* **Ollama**: (Optional) For offline local LLM capability.
 
----
-
-## 6. Local Setup & Developer Quickstart
-
-To run the application locally:
-
-### 1. Prerequisites
-Ensure you have [Docker](https://www.docker.com/) and [Node.js (v18+)](https://nodejs.org/) installed.
-
-### 2. Setup Database & Packages
+### 2. Install Packages & Database Setup
 ```bash
 # Install dependencies
 npm install
 
-# Start local Supabase Docker containers
+# Start local Supabase container infrastructure
 supabase start
 
-# Apply migrations to prepare schemas
+# Migrate schema tables
 npm run db-migrate
 ```
 
-### 3. Setup Ollama (Local LLM Fallback)
-Install [Ollama](https://ollama.com) and pull the gemma2:2b model:
+### 3. Setup Ollama (Local Extractor Fallback)
+Download and launch [Ollama](https://ollama.com), then pull the target model:
 ```bash
 ollama pull gemma2:2b
 ```
 
-### 4. Run Development Server
+### 4. Run Workspace Server
 ```bash
-# Populate environment variables
+# Create local configuration variables
 cp .env.local.example .env.local
 
-# Run Dev Server (starts Supabase & Next.js concurrently)
+# Launch the Next.js app and the local database concurrently
 npm run chat
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in using the default Supabase test profile:
-- **Email**: `test@test.com`
-- **Password**: `password`
+Once running, navigate to [http://localhost:3000](http://localhost:3000) and authenticate using the default credentials:
+* **Email**: `test@test.com`
+* **Password**: `password`
