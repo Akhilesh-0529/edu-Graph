@@ -36,9 +36,9 @@ export function LoginForm({
 
   // Demo credentials mapping
   const demoCredentials: Record<Role, { email: string; pass: string }> = {
-    student: { email: "student@edusphere.edu", pass: "password123" },
-    teacher: { email: "teacher@edusphere.edu", pass: "password123" },
-    admin: { email: "admin@edusphere.edu", pass: "password123" }
+    student: { email: "test@test.com", pass: "password" },
+    teacher: { email: "test@test.com", pass: "password" },
+    admin: { email: "test@test.com", pass: "password" }
   }
 
   // Pre-fill fields when role changes

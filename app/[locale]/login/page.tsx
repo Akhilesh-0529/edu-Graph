@@ -32,7 +32,7 @@ export default async function Login({
 
   if (session) {
     console.log("Skipping login: active session found, redirecting to workspace")
-    const { data: homeWorkspace, error } = await supabaseClient
+    const { data: homeWorkspace } = await supabaseClient
       .from("workspaces")
       .select("*")
       .eq("user_id", session.user.id)
@@ -40,7 +40,7 @@ export default async function Login({
       .single()
 
     if (!homeWorkspace) {
-      throw new Error(error?.message || "Workspace not found")
+      return redirect("/setup")
     }
 
     return redirect(`/${homeWorkspace.id}/chat`)
@@ -63,7 +63,7 @@ export default async function Login({
       return redirect(`/login?message=${error.message}`)
     }
 
-    const { data: homeWorkspace, error: homeWorkspaceError } = await supabase
+    const { data: homeWorkspace } = await supabase
       .from("workspaces")
       .select("*")
       .eq("user_id", data.user.id)
@@ -71,9 +71,7 @@ export default async function Login({
       .single()
 
     if (!homeWorkspace) {
-      throw new Error(
-        homeWorkspaceError?.message || "An unexpected error occurred"
-      )
+      return redirect("/setup")
     }
 
     return redirect(`/${homeWorkspace.id}/chat`)

@@ -93,7 +93,7 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
     // 1. Primary path: Local Ollama (gemma2:2b)
     try {
       console.log("Attempting primary concept extraction with local Ollama (gemma2:2b)...")
-      const ollamaUrl = process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434"
+      const ollamaUrl = process.env.OLLAMA_BASE_URL || process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434"
       const openaiClient = new OpenAI({
         apiKey: "ollama",
         baseURL: `${ollamaUrl}/v1`
