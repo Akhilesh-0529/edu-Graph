@@ -79,54 +79,20 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
     const userPrompt = `Here is the educational text:\n\n${docText.substring(0, 10000)}\n\nExtract the concepts and relations in JSON format.`
 
     let completionText = ""
+    let selectedProviderLog = ""
 
-    // Try DeepSeek first
-    if (!useLocal && (profile.deepseek_api_key || process.env.DEEPSEEK_API_KEY)) {
-      try {
-        console.log("Attempting concept extraction with DeepSeek...")
-        const openaiClient = new OpenAI({
-          apiKey: profile.deepseek_api_key || process.env.DEEPSEEK_API_KEY || "",
-          baseURL: "https://api.deepseek.com/v1"
-        })
-        const response = await openaiClient.chat.completions.create({
-          model: "deepseek-chat",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.1
-        })
-        completionText = response.choices[0]?.message?.content || ""
-      } catch (err: any) {
-        console.warn("DeepSeek extraction failed, falling back to next available provider:", err.message)
-      }
-    }
+    /**
+     * LOCAL-FIRST EXTRACTION DESIGN DECISION:
+     * We run extraction using local Ollama (gemma2:2b) as the PRIMARY path.
+     * Reasons:
+     * 1. Cost: Zero cost for NLP parsing of documents/chat contexts.
+     * 2. Privacy: Keeps student workspace data entirely local to their machine.
+     * 3. Resiliency: No dependency on external cloud services or API key setup for the core graph visualization to function.
+     */
 
-    // Try OpenAI next if still empty
-    if (!useLocal && !completionText && (profile.openai_api_key || process.env.OPENAI_API_KEY)) {
-      try {
-        console.log("Attempting concept extraction with OpenAI...")
-        const openaiClient = new OpenAI({
-          apiKey: profile.openai_api_key || process.env.OPENAI_API_KEY || "",
-          organization: profile.openai_organization_id
-        })
-        const response = await openaiClient.chat.completions.create({
-          model: "gpt-4-turbo",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.1
-        })
-        completionText = response.choices[0]?.message?.content || ""
-      } catch (err: any) {
-        console.warn("OpenAI extraction failed, falling back to local Ollama:", err.message)
-      }
-    }
-
-    // Try local Ollama as final fallback
-    if (!completionText) {
-      console.log("Using local Ollama fallback (gemma2:2b)")
+    // 1. Primary path: Local Ollama (gemma2:2b)
+    try {
+      console.log("Attempting primary concept extraction with local Ollama (gemma2:2b)...")
       const ollamaUrl = process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434"
       const openaiClient = new OpenAI({
         apiKey: "ollama",
@@ -141,8 +107,74 @@ Do not include any explanation, markdown formatting, or text outside the JSON. E
         temperature: 0.1
       })
       completionText = response.choices[0]?.message?.content || ""
+      selectedProviderLog = "Local Ollama (gemma2:2b)"
+    } catch (err: any) {
+      console.warn("Primary local Ollama extraction failed, checking fallback cloud options:", err.message)
     }
 
+    // 2. Fallback Option A: DeepSeek Cloud API
+    if (!completionText) {
+      const deepseekKey = profile.deepseek_api_key || process.env.DEEPSEEK_API_KEY
+      if (deepseekKey) {
+        try {
+          console.log("Attempting fallback concept extraction with DeepSeek Cloud...")
+          const openaiClient = new OpenAI({
+            apiKey: deepseekKey,
+            baseURL: "https://api.deepseek.com/v1"
+          })
+          const response = await openaiClient.chat.completions.create({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.1
+          })
+          completionText = response.choices[0]?.message?.content || ""
+          selectedProviderLog = "DeepSeek Cloud API"
+        } catch (err: any) {
+          console.warn("DeepSeek fallback extraction failed:", err.message)
+        }
+      } else {
+        console.log("Skipping DeepSeek fallback: No DeepSeek API Key provided.")
+      }
+    }
+
+    // 3. Fallback Option B: OpenAI Cloud API
+    if (!completionText) {
+      const openaiKey = profile.openai_api_key || process.env.OPENAI_API_KEY
+      if (openaiKey) {
+        try {
+          console.log("Attempting fallback concept extraction with OpenAI Cloud...")
+          const openaiClient = new OpenAI({
+            apiKey: openaiKey,
+            organization: profile.openai_organization_id
+          })
+          const response = await openaiClient.chat.completions.create({
+            model: "gpt-4-turbo",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.1
+          })
+          completionText = response.choices[0]?.message?.content || ""
+          selectedProviderLog = "OpenAI Cloud API"
+        } catch (err: any) {
+          console.warn("OpenAI fallback extraction failed:", err.message)
+        }
+      } else {
+        console.log("Skipping OpenAI fallback: No OpenAI API Key provided.")
+      }
+    }
+
+    // If both local and fallbacks failed
+    if (!completionText) {
+      throw new Error("Concept extraction failed: Local Ollama is offline, and no valid fallback cloud credentials succeeded.")
+    }
+
+    // Clear logs indicating path served
+    console.log(`[EXTRACTION COMPLETED] Served by: ${selectedProviderLog}`)
     console.log("LLM response content:", completionText)
 
     // Parse JSON safely

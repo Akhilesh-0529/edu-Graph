@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Chatbot UI (Full Setup)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "chat"],
+      "port": 9229,
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "pattern": "- Local:\\s+https?://localhost:([0-9]+)",
+        "webRoot": "${workspaceFolder}"
+      },
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Debug Next.js Dev Server Only",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 9229,
+      "serverReadyAction": {
+        "action": "debugWithChrome",
+        "pattern": "- Local:\\s+https?://localhost:([0-9]+)",
+        "webRoot": "${workspaceFolder}"
+      },
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

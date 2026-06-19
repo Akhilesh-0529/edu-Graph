@@ -7,7 +7,7 @@ import { Tabs } from "@/components/ui/tabs"
 import useHotkey from "@/lib/hooks/use-hotkey"
 import { cn } from "@/lib/utils"
 import { ContentType } from "@/types"
-import { IconChevronCompactRight } from "@tabler/icons-react"
+import { IconChevronCompactRight, IconHierarchy } from "@tabler/icons-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { FC, useState, useContext } from "react"
 import { useSelectFileHandler } from "../chat/chat-hooks/use-select-file-handler"
@@ -112,8 +112,16 @@ export const Dashboard: FC<DashboardProps> = ({ children }) => {
           <div className="flex h-full items-center justify-center bg-black/50 text-2xl text-white">
             drop file here
           </div>
-        ) : (contentType === "graphs" && selectedGraph) ? (
-          <KnowledgeGraphView />
+        ) : contentType === "graphs" ? (
+          selectedGraph ? (
+            <KnowledgeGraphView />
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground bg-background">
+              <IconHierarchy size={64} className="mb-4 text-blue-500/50" />
+              <div className="text-xl font-semibold">No Graph Selected</div>
+              <div className="text-sm mt-1 text-center max-w-sm px-4">Select a knowledge graph from the sidebar to view or edit it.</div>
+            </div>
+          )
         ) : (
           children
         )}

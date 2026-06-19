@@ -3,7 +3,8 @@ import { useChatHandler } from "@/components/chat/chat-hooks/use-chat-handler"
 import { ChatbotUIContext } from "@/context/context"
 import { getAssistantToolsByAssistantId } from "@/db/assistant-tools"
 import { getChatFilesByChatId } from "@/db/chat-files"
-import { getChatById } from "@/db/chats"
+import { getGraphDetails } from "@/db/knowledge-graphs"
+import { getChatById as getDbChatById } from "@/db/chats"
 import { getMessageFileItemsByMessageId } from "@/db/message-file-items"
 import { getMessagesByChatId } from "@/db/messages"
 import { getMessageImageFromStorage } from "@/db/storage/message-images"
@@ -38,7 +39,8 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     setChatFiles,
     setShowFilesDisplay,
     setUseRetrieval,
-    setSelectedTools
+    setSelectedTools,
+    setSelectedGraph
   } = useContext(ChatbotUIContext)
 
   const { handleNewChat, handleFocusChatInput } = useChatHandler()
@@ -155,7 +157,7 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
   }
 
   const fetchChat = async () => {
-    const chat = await getChatById(params.chatid as string)
+    const chat = await getDbChatById(params.chatid as string)
     if (!chat) return
 
     if (chat.assistant_id) {
@@ -174,6 +176,16 @@ export const ChatUI: FC<ChatUIProps> = ({}) => {
     }
 
     setSelectedChat(chat)
+
+    // Load associated graph from localStorage
+    const associatedGraphId = localStorage.getItem(`chat_graph_${chat.id}`)
+    if (associatedGraphId) {
+      const fullGraph = await getGraphDetails(associatedGraphId)
+      setSelectedGraph(fullGraph)
+    } else {
+      setSelectedGraph(null)
+    }
+
     setChatSettings({
       model: chat.model as LLMID,
       prompt: chat.prompt,

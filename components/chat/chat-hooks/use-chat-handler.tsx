@@ -81,7 +81,7 @@ export const useChatHandler = () => {
     }
   }, [isPromptPickerOpen, isFilePickerOpen, isToolPickerOpen])
 
-  const handleNewChat = async () => {
+  const handleNewChat = async (preserveGraph = false) => {
     if (!selectedWorkspace) return
 
     setUserInput("")
@@ -102,6 +102,10 @@ export const useChatHandler = () => {
 
     setSelectedTools([])
     setToolInUse("none")
+
+    if (!preserveGraph) {
+      setSelectedGraph(null)
+    }
 
     if (selectedAssistant) {
       setChatSettings({
@@ -354,6 +358,9 @@ export const useChatHandler = () => {
           setChats,
           setChatFiles
         )
+        if (selectedGraph) {
+          localStorage.setItem(`chat_graph_${currentChat.id}`, selectedGraph.graph.id)
+        }
       } else {
         const updatedChat = await updateChat(currentChat.id, {
           updated_at: new Date().toISOString()

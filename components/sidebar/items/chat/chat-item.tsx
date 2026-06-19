@@ -22,7 +22,8 @@ export const ChatItem: FC<ChatItemProps> = ({ chat }) => {
     selectedChat,
     availableLocalModels,
     assistantImages,
-    availableOpenRouterModels
+    availableOpenRouterModels,
+    setSelectedGraph
   } = useContext(ChatbotUIContext)
 
   const router = useRouter()

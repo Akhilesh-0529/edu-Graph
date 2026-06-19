@@ -19,6 +19,7 @@ import {
 import { Slider } from "./slider"
 import { TextareaAutosize } from "./textarea-autosize"
 import { WithTooltip } from "./with-tooltip"
+import { getGraphDetails } from "@/db/knowledge-graphs"
 
 interface ChatSettingsFormProps {
   chatSettings: ChatSettings
@@ -33,7 +34,14 @@ export const ChatSettingsForm: FC<ChatSettingsFormProps> = ({
   useAdvancedDropdown = true,
   showTooltip = true
 }) => {
-  const { profile, models } = useContext(ChatbotUIContext)
+  const {
+    profile,
+    models,
+    graphs,
+    selectedGraph,
+    setSelectedGraph,
+    selectedChat
+  } = useContext(ChatbotUIContext)
 
   if (!profile) return null
 
@@ -63,6 +71,39 @@ export const ChatSettingsForm: FC<ChatSettingsFormProps> = ({
           minRows={3}
           maxRows={6}
         />
+      </div>
+
+      <div className="space-y-1">
+        <Label>Associated Knowledge Graph</Label>
+        <Select
+          value={selectedGraph?.graph.id || "none"}
+          onValueChange={async (graphId) => {
+            if (graphId === "none") {
+              setSelectedGraph(null)
+              if (selectedChat) {
+                localStorage.removeItem(`chat_graph_${selectedChat.id}`)
+              }
+            } else {
+              const fullGraph = await getGraphDetails(graphId)
+              setSelectedGraph(fullGraph)
+              if (selectedChat) {
+                localStorage.setItem(`chat_graph_${selectedChat.id}`, graphId)
+              }
+            }
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select graph..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None</SelectItem>
+            {graphs.map(g => (
+              <SelectItem key={g.id} value={g.id}>
+                {g.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {useAdvancedDropdown ? (
