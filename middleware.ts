@@ -24,6 +24,7 @@ export async function middleware(request: NextRequest) {
 
     if (session) {
       if (isRoot || isLogin) {
+        console.log("Middleware - Skipping login/root: active session found, redirecting to workspace")
         const { data: homeWorkspace, error } = await supabase
           .from("workspaces")
           .select("*")
