@@ -1,0 +1,16 @@
+# Cloudflare Tunnel Configuration Template
+# Copy this file to 'config.yml' and customize it.
+
+# The unique ID of the tunnel you created using `cloudflared tunnel create <name>`
+tunnel: <YOUR_TUNNEL_ID>
+
+# Path to the credentials file generated when creating the tunnel
+credentials-file: /Users/akhileshyerram/.cloudflared/<YOUR_TUNNEL_ID>.json
+
+ingress:
+  # Map your custom domain/subdomain to the local Supabase Kong gateway
+  - hostname: supabase.yourdomain.com
+    service: http://localhost:54321
+
+  # Catch-all rule: returns a 404 for any other incoming hostnames
+  - service: http_status:404

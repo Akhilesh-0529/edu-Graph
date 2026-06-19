@@ -23,7 +23,8 @@
     "db-types": "supabase gen types typescript --local > supabase/types.ts",
     "db-pull": "supabase db remote commit",
     "db-push": "supabase db push",
-    "test": "jest"
+    "test": "jest",
+    "tunnel": "cloudflared tunnel --url http://localhost:54321"
   },
   "dependencies": {
     "@apidevtools/json-schema-ref-parser": "^11.1.0",
